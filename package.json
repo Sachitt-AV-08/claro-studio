@@ -1,24 +1,22 @@
 {
   "name": "claro-studio",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "private": true,
-  "type": "module",
-  "description": "CLARO - local-first AI-native IDE for the Claro (.cl) reversible UI language",
   "workspaces": [
-    "contracts",
-    "packages/*",
-    "apps/*"
+    "apps/*",
+    "packages/*"
   ],
   "scripts": {
-    "verify": "node scripts/verify.mjs",
-    "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present",
-    "build": "npm run build --workspaces --if-present",
-    "dev:ide": "npm run dev --workspace @project/ide"
+    "dev": "npm run dev --workspace=apps/ide",
+    "build": "npm run build --workspaces",
+    "typecheck": "npm run typecheck --workspaces",
+    "test": "npm run test --workspaces"
   },
   "devDependencies": {
-    "@types/node": "^22.10.2",
-    "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "typescript": "^5.4.0",
+    "vitest": "^1.3.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   }
 }
