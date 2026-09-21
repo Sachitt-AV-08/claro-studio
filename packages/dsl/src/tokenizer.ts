@@ -31,8 +31,28 @@ export interface TokenizeResult {
   errors: { message: string; line: number; col: number }[];
 }
 
-/** Whitespace-insensitive, brace-blocked Claro tokenizer. */
-export function tokenize(source: string): TokenizeResult {
+/**
+ * Normalize hostile input before tokenizing:
+ * - strip BOM, normalize \r\n -> \n
+ * - strip AI markdown fences around the whole file (```cl ... ```)
+ * Optional `;` are tolerated as ignorable separators (see TOLERANCE).
+ */
+export function normalizeSource(source: string): string {
+  let s = source.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const trimmed = s.trim();
+  const fenceOpen = /^```[a-zA-Z0-9_.\-]*\s*\n?/.exec(trimmed);
+  if (fenceOpen) {
+    const rest = trimmed.slice(fenceOpen[0].length);
+    if (/```\s*$/.test(rest)) {
+      s = rest.replace(/```\s*$/, "");
+    }
+  }
+  return s;
+}
+
+/** Whitespace-insensitive, brace-blocked Claro tokenizer. Tolerant by design. */
+export function tokenize(raw: string): TokenizeResult {
+  const source = normalizeSource(raw);
   const tokens: Token[] = [];
   const errors: TokenizeResult["errors"] = [];
   let i = 0;
@@ -59,6 +79,12 @@ export function tokenize(source: string): TokenizeResult {
 
     // whitespace
     if (c === " " || c === "\t" || c === "\n" || c === "\r") {
+      advance();
+      continue;
+    }
+
+    // optional semicolons are tolerated and ignored (TOLERANCE)
+    if (c === ";") {
       advance();
       continue;
     }
@@ -95,21 +121,23 @@ export function tokenize(source: string): TokenizeResult {
       continue;
     }
 
-    // string
-    if (c === '"') {
+    // string ("..." or '...') — single quote is a tolerated alias (TOLERANCE)
+    if (c === '"' || c === "'") {
+      const quote = c;
       const startLine = line, startCol = col;
       advance();
       let value = "";
-      while (peek() && peek() !== '"') {
+      while (peek() && peek() !== quote) {
         if (peek() === "\\") {
           advance();
           const esc = advance();
-          value += esc === "n" ? "\n" : esc === "t" ? "\t" : esc === '"' ? '"' : esc === "\\" ? "\\" : esc;
+          value +=
+            esc === "n" ? "\n" : esc === "t" ? "\t" : esc === '"' ? '"' : esc === "'" ? "'" : esc === "\\" ? "\\" : esc;
         } else {
           value += advance();
         }
       }
-      if (peek() !== '"') {
+      if (peek() !== quote) {
         errors.push({ message: "unterminated string", line: startLine, col: startCol });
       } else {
         advance();
