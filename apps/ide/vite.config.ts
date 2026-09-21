@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import monacoEditorPlugin from 'vite-plugin-monaco-editor';
 import path from 'path';
 
-const monaco = monacoEditorPlugin.default ?? monacoEditorPlugin;
+const monaco = (monacoEditorPlugin as unknown as { default?: typeof monacoEditorPlugin }).default ?? monacoEditorPlugin;
 
 export default defineConfig({
   plugins: [
@@ -26,6 +26,7 @@ export default defineConfig({
       '@project/ai': path.resolve(__dirname, '../../packages/ai/src/index.ts'),
     },
   },
+  base: './',
   build: {
     outDir: 'dist',
     emptyOutDir: true,

@@ -37,7 +37,7 @@ export const RenderTree: React.FC<RenderTreeProps> = ({
         .join(" ");
 
       const children = node.children.length > 0 ? walk(node.children, depth + 1) : null;
-      const text = node.text ?? node.textRef ? `@${node.textRef}` : null;
+      const text = node.textRef ? `@${node.textRef}` : node.text;
 
       return (
         <div

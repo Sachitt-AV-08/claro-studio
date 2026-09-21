@@ -212,7 +212,7 @@ export class Parser {
     return params;
   }
 
-  private ensureLbrace(p: TokIter, fallback: SourceRange, what: string): void {
+  private ensureLbrace(p: TokIter, _fallback: SourceRange, what: string): void {
     if (peek(p).type === "lbrace") {
       next(p);
       return;

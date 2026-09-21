@@ -1,51 +1,44 @@
-import React, { useState, useMemo } from "react";
-import { useClaroStore } from "../store/claroStore";
+import { createBhasm } from "@project/ai";
+import type { Bhasm } from "@project/ai";
+import type { ModelStatus } from "@project/contracts";
+
+/**
+ * Thin IDE-side adapter over @project/ai's Bhasm (Ollama qwen2.5:3b, offline).
+ *
+ * Bhasm runs entirely in the renderer: it talks to Ollama directly over HTTP
+ * (http://localhost:11434). No IPC needed. Every AI action is a PatchOp batch
+ * validated against the engine — reversible by construction.
+ */
+
+const instance: Bhasm = createBhasm({ model: "qwen2.5:3b" });
 
 export interface ClaroAi {
   health(): Promise<{ ok: boolean; models: Array<{ name: string; size: number }>; error?: string }>;
+  status(): Promise<ModelStatus>;
   proposePatch(instruction: string, project: import("@project/contracts").Project): Promise<import("@project/contracts").PatchProposal>;
+  describePatch(intendedSource: string, currentSource: string, project: import("@project/contracts").Project): Promise<import("@project/contracts").PatchProposal>;
   review(project: import("@project/contracts").Project, includeLlm?: boolean): Promise<import("@project/contracts").ReviewResult>;
-  applyPatch(project: import("@project/contracts").Project, ops: import("@project/contracts").PatchOp[]): Promise<ReturnType<import("@project/dsl").applyOps>>;
+  applyPatch(project: import("@project/contracts").Project, ops: import("@project/contracts").PatchOp[]): Promise<import("@project/dsl").ApplyResult>;
 }
 
 export function createClaroAi(): ClaroAi {
   return {
     async health() {
-      // Placeholder - will be implemented when @project/ai is properly wired
-      return { ok: false, models: [], error: "AI not yet connected. Wire @project/ai in IDE." };
+      return instance.health();
     },
-
-    async proposePatch(instruction: string, _project: import("@project/contracts").Project) {
-      // Local stub: parse simple instructions for demo
-      const ops: import("@project/contracts").PatchOp[] = [];
-      
-      if (instruction.toLowerCase().includes("red") && instruction.toLowerCase().includes("title")) {
-        ops.push({ op: "set_property", target: "home.hero.title", property: "color", value: { t: "color", v: "#ef4444" } });
-      }
-      if (instruction.toLowerCase().includes("blue") && instruction.toLowerCase().includes("title")) {
-        ops.push({ op: "set_property", target: "home.hero.title", property: "color", value: { t: "color", v: "#3b82f6" } });
-      }
-      if (instruction.toLowerCase().includes("bigger") && instruction.toLowerCase().includes("title")) {
-        ops.push({ op: "set_property", target: "home.hero.title", property: "size", value: { t: "num", v: 64 } });
-      }
-      if (instruction.toLowerCase().includes("green")) {
-        ops.push({ op: "set_property", target: "home.features", property: "background", value: { t: "color", v: "#22c55e" } });
-      }
-      
-      return {
-        workflow: "modify" as const,
-        summary: ops.length ? `AI suggestion for: ${instruction}` : "No matching rule",
-        patch: { summary: ops.length ? "demo ops" : "none", ops },
-      };
+    async status() {
+      return instance.status();
     },
-
-    async review(project: import("@project/contracts").Project) {
-      // Delegate to deterministic rules only
-      const issues: import("@project/contracts").ReviewIssue[] = [];
-      return { issues, modelSourced: false };
+    async proposePatch(instruction, project) {
+      return instance.proposePatch(instruction, project);
     },
-
-    async applyPatch(project: import("@project/contracts").Project, ops: import("@project/contracts").PatchOp[]) {
+    async describePatch(intendedSource, currentSource, project) {
+      return instance.describePatch(intendedSource, currentSource, project);
+    },
+    async review(project, includeLlm) {
+      return instance.review(project, includeLlm ?? false);
+    },
+    async applyPatch(project, ops) {
       const { applyOps } = await import("@project/dsl");
       return applyOps(project, ops);
     },

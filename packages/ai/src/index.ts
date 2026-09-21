@@ -1,13 +1,13 @@
-// High-level API (preferred for Agent 2 integration)
-export { createClaroAi } from "./integration.ts";
-export type { ClaroAi, ClaroAiOptions } from "./integration.ts";
+// High-level API (preferred for IDE integration)
+export { createBhasm } from "./integration.js";
+export type { Bhasm, BhasmOptions } from "./integration.js";
 
 // Individual modules
-export { createOllamaProvider, health } from "./ollama.ts";
-export { applyOps, prop } from "./patches.ts";
-export { proposeIntent, buildContext } from "./intent.ts";
-export { describeToPatch } from "./toPatch.ts";
-export { reviewProject } from "./review.ts";
+export { createOllamaProvider, health } from "./ollama.js";
+export { applyOps, prop } from "./patches.js";
+export { proposeIntent, buildContext } from "./intent.js";
+export { describeToPatch } from "./toPatch.js";
+export { reviewProject } from "./review.js";
 
 // Prompts (for customization)
 export {
@@ -17,4 +17,4 @@ export {
   buildIntentPrompt,
   buildDescribePrompt,
   buildReviewPrompt,
-} from "./prompts.ts";
+} from "./prompts.js";

@@ -38,16 +38,12 @@ const KEYWORDS = [
 
 const LAYOUT_ENUMS = ["stack", "row", "grid", "overlay", "column", "flex"];
 
-function toCaseInsensitive(arr: string[]): string {
-  return arr.join("|");
-}
-
 export function registerClaroLanguage(): void {
   monaco.languages.register({ id: "claro" });
 
   monaco.languages.setMonarchTokensProvider("claro", {
-    keywords: toCaseInsensitive(KEYWORDS),
-    layoutEnums: toCaseInsensitive(LAYOUT_ENUMS),
+    keywords: KEYWORDS,
+    layoutEnums: LAYOUT_ENUMS,
     tokenizer: {
       root: [
         [
@@ -62,6 +58,7 @@ export function registerClaroLanguage(): void {
         ],
         [/"(?:[^"\\]|\\.)*"/, "string"],
         [/'(?:[^'\\]|\\.)*'/, "string"],
+        [/^[ \t]*#[ \t].*$/m, "comment.idea"],
         [/#[0-9a-fA-F]{3,8}\b/, "number.hex"],
         [/@[\w-]+/, "tag"],
         [/[{}\[\](),:]/, "delimiter"],
@@ -114,6 +111,7 @@ export function registerClaroLanguage(): void {
       { token: "tag", foreground: "DCDCAA" },
       { token: "delimiter", foreground: "D4D4D4" },
       { token: "comment", foreground: "6A9955" },
+      { token: "comment.idea", foreground: "8A7BFF", fontStyle: "italic" },
       { token: "white", foreground: "FFFFFF00" },
     ],
     colors: {
@@ -140,6 +138,35 @@ export function registerClaroLanguage(): void {
       "scrollbarSlider.activeBackground": "#4A4A5A",
     },
   });
+}
+
+/**
+ * Hover for "#" idea comments — the project's brain. Double-clicking the line
+ * seeds BHASM in explain-comment mode (handled in App.tsx via onMouseDown).
+ */
+export function createIdeaHoverProvider(): monaco.languages.HoverProvider {
+  return {
+    provideHover(model, position) {
+      const line = model.getLineContent(position.lineNumber);
+      const m = line.match(/^\s*#[ \t]*(.+)$/);
+      if (!m) return null;
+      return {
+        range: new monaco.Range(position.lineNumber, 1, position.lineNumber, line.length + 1),
+        contents: [
+          {
+            value:
+              `**Idea** — _double-click this line to send "${m[1].trim()}" to BHASM_ (explain-comment).`,
+          },
+        ],
+      };
+    },
+  };
+}
+
+/** Does this editor line hold a "#" idea comment? (used by double-click seeding) */
+export function ideaAtLine(line: string): string | null {
+  const m = line.match(/^\s*#[ \t]*(.+)$/);
+  return m ? m[1].trim() : null;
 }
 
 /** Get completion items for the Claro language (element names + their props). */

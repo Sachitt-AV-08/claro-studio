@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('app:maximize-change', listener);
     return () => ipcRenderer.off('app:maximize-change', listener);
   },
+  claroReadSkills: () => ipcRenderer.invoke('claro:read-skills') as Promise<string[]>,
+  claroReadText: (path: string) => ipcRenderer.invoke('claro:read-text', path) as Promise<string>,
 });
 
 declare global {
@@ -20,6 +22,8 @@ declare global {
       maximize: () => Promise<void>;
       isMaximized: () => Promise<boolean>;
       onMaximizeChange: (callback: (maximized: boolean) => void) => () => void;
+      claroReadSkills: () => Promise<string[]>;
+      claroReadText: (path: string) => Promise<string>;
     };
   }
 }

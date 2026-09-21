@@ -1,0 +1,23 @@
+appId: com.claro.studio
+productName: CLARO Studio
+copyright: "Copyright © 2026 CLARO Studio"
+files:
+  - "dist/**"
+  - "dist-electron/**"
+  - "skills/**"
+  - "package.json"
+asar: false
+directories:
+  output: release
+  buildResources: assets
+win:
+  target:
+    - target: dir
+      arch:
+        - x64
+  icon: assets/icon.png
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true

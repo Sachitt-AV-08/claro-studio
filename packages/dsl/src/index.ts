@@ -2,4 +2,4 @@ export { tokenize, normalizeSource, type Token, type TokenType, type TokenizeRes
 export { parse, Parser, suggestions } from "./parser.js";
 export { format, formatSource, formatValue } from "./formatter.js";
 export { applyOps, applyOp, validateOps, schemaFor, nodeById } from "./patches.js";
-export type { Project, DslNode, PropValue, Diagnostic } from "@project/contracts";
+export type { Project, DslNode, PropValue, Diagnostic, ApplyResult } from "@project/contracts";
