@@ -1,6 +1,26 @@
-# Claro Roadmap (T1 → T2 → T3)
+# Claro Roadmap
 
-## T1 — the demo (24h, locked P0)
+## Current build — M0 → M5 (active, locked)
+
+- **M0 Icon & brand** — wire the app icon (assets/icon.png → exe via electron-builder,
+  BrowserWindow icon, favicon). DONE.
+- **M1 Icons + chrome** — official Codicons (no emoji), tab strip + multi-file model,
+  VS Code explorer, activity bar (incl. Tasks / Stitch / Extensions), status bar groups.
+- **M2 Preview + AI foundation** — phone-frame preview + device toggle; real streaming AI
+  (drop `apps/ide/src/ai/localAi.ts` stub, wire `packages/ai`); health gate.
+- **M3 BHASM** — internal opencode-style extension: agent, typed tools, skills
+  (`claro-language` generated from `contracts/dsl-schema.ts` + ideas + user `.md`),
+  runtime; bottom docked panel; Extensions view. See `docs/BHASM.md`.
+- **M4 Stitch + Todos + differentiators** — Stitch primary view (goal bar, Source A|B |
+  Destination seam, provenance via PatchOps); BHASM execution todos + persisted team
+  Tasks panel; comment → Bhasm; command palette + Problems panel; Export (single-file
+  HTML + "Package app"); multi-language files.
+- **M5 Delivery** — palette alignment, clean rebuild (`npm run dist`), on-screen
+  verification, commit to `agent-2/ide`.
+
+Per-agent briefs: `docs/AGENT-PROMPTS.txt`.
+
+## T1 — the demo (24h, locked P0, shipped)
 
 - Reversible CODE ↔ AST ↔ PREVIEW loop
 - Components, inspector, undo, palette
