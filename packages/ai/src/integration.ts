@@ -15,7 +15,6 @@ import type {
   PatchProposal,
   ReviewResult,
   ModelStatus,
-  DslNode,
   PatchOp,
 } from "@project/contracts";
 import { createOllamaProvider, health } from "./ollama.js";
@@ -47,9 +46,9 @@ export interface ClaroAi {
   /** Review project with rules engine + optional LLM feedback. */
   review(project: Project, includeLlm?: boolean): Promise<ReviewResult>;
 
-  /** Apply PatchOps to a project's pages. Returns modified pages + inverses. */
+  /** Apply PatchOps to a project. Returns modified project + inverses. */
   applyPatch(
-    pages: DslNode[],
+    project: Project,
     ops: PatchOp[],
   ): ReturnType<typeof applyOps>;
 }
@@ -91,8 +90,8 @@ export function createClaroAi(options: ClaroAiOptions = {}): ClaroAi {
       return reviewProject(project, includeLlm ? provider : undefined);
     },
 
-    applyPatch(pages, ops) {
-      return applyOps(pages, ops);
+    applyPatch(project, ops) {
+      return applyOps(project, ops);
     },
   };
 }
