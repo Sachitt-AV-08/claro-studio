@@ -21,5 +21,6 @@
     }
   },
   "include": ["src", "vite.config.ts"],
+  "exclude": ["node_modules", "dist", "dist-electron", "../../packages/**"],
   "references": [{ "path": "./tsconfig.electron.json" }]
 }

@@ -3,10 +3,12 @@ import react from '@vitejs/plugin-react';
 import monacoEditorPlugin from 'vite-plugin-monaco-editor';
 import path from 'path';
 
+const monaco = monacoEditorPlugin.default ?? monacoEditorPlugin;
+
 export default defineConfig({
   plugins: [
     react(),
-    monacoEditorPlugin({
+    monaco({
       languageWorkers: ['editorWorkerService', 'typescript'],
       customWorkers: [
         {
@@ -19,6 +21,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@project/dsl': path.resolve(__dirname, '../../packages/dsl/src/index.ts'),
+      '@project/contracts': path.resolve(__dirname, '../../contracts/src/index.ts'),
+      '@project/ai': path.resolve(__dirname, '../../packages/ai/src/index.ts'),
     },
   },
   build: {

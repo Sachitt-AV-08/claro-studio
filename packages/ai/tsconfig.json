@@ -1,5 +1,9 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "types": ["node"] },
+  "compilerOptions": {
+    "types": ["node"],
+    "moduleResolution": "node16",
+    "allowImportingTsExtensions": true
+  },
   "include": ["src/**/*.ts", "test/**/*.ts"]
 }

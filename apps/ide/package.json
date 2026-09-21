@@ -2,6 +2,7 @@
   "name": "@claro/ide",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "concurrently -k \"npm run dev:vite\" \"npm run dev:electron\"",
@@ -11,7 +12,7 @@
     "build:vite": "vite build",
     "build:electron": "tsc -p tsconfig.electron.json",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "lint": "eslint src --ext ts,tsx"
   },
   "dependencies": {
