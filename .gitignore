@@ -1,0 +1,29 @@
+# deps
+node_modules/
+
+# build output
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# android / gradle
+.gradle/
+local.properties
+*.apk
+*.aab
+
+# ide / electron
+apps/ide/release/
+apps/ide/dist-electron/
+
+# tooling
+coverage/
+.vite/
+
+# logs & local
+*.log
+.DS_Store
+Thumbs.db
+.env
+.env.local

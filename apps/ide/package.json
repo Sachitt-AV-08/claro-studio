@@ -1,0 +1,7 @@
+{
+  "name": "@project/ide",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "CLARO Studio renderer: Electron + Vite + React + Monaco. Owned by Agent 2."
+}
