@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import type { Project, DslNode, ModelProvider, Completion, ModelStatus, PatchProposal } from "@project/contracts";
+import type { Project, DslNode, ModelProvider, Completion, ModelStatus, PatchProposal, PropValue } from "@project/contracts";
 import { validateOps } from "@project/contracts";
 import { health, createOllamaProvider } from "../src/ollama.js";
 import { applyOps, prop } from "../src/patches.js";
@@ -27,9 +27,9 @@ function makeNode(
         if (typeof v === "string") return [k, { t: "str", v }];
         if (typeof v === "number") return [k, { t: "num", v }];
         if (typeof v === "boolean") return [k, { t: "bool", v }];
-        return [k, v];
+        return [k, v as PropValue];
       }),
-    ),
+    ) as Record<string, PropValue>,
     children,
     source: { start: { line: 1, col: 1 }, end: { line: 1, col: 10 }, text: "" },
   };

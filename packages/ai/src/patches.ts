@@ -155,6 +155,16 @@ export function applyOps(
         }
         break;
       }
+      case "clear_property": {
+        const node = findNode(pages, op.target);
+        if (!node) return { ok: false, error: `node ${op.target} not found`, op };
+        const prev = node.props[op.property];
+        delete node.props[op.property];
+        if (prev) {
+          inverses.push({ op: "set_property", target: op.target, property: op.property, value: prev });
+        }
+        break;
+      }
       default: {
         const _exhaustive: never = op;
         return { ok: false, error: `unknown op ${JSON.stringify(_exhaustive)}`, op };
