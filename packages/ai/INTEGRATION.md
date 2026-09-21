@@ -1,28 +1,29 @@
-# Agent 3 → Agent 2 Integration Guide
+# Bhasm — IDE Integration Guide
+
+**Bhasm** is the AI brain of CLARO Studio. It runs locally on Ollama (`qwen2.5:3b`) and proposes UI patches from natural language.
 
 ## Quick Start
 
 ```typescript
-import { createClaroAi } from "@project/ai";
+import { createBhasm } from "@project/ai";
 
-const ai = createClaroAi(); // uses qwen2.5:3b by default
+const bhasm = createBhasm(); // uses qwen2.5:3b by default
 
 // Check if model is available
-const h = await ai.health();
+const h = await bhasm.health();
 if (!h.ok) {
   console.error("Ollama not running or model missing");
   return;
 }
 
 // Natural language → Patch
-const proposal = await ai.proposePatch("make the hero title red", project);
+const proposal = await bhasm.proposePatch("make the hero title red", project);
 console.log(proposal.summary); // "Changed hero title color to red"
 console.log(proposal.patch.ops); // validated PatchOp[]
 
 // Apply patches
-const result = ai.applyPatch(project.pages, proposal.patch.ops);
+const result = bhasm.applyPatch(project.pages, proposal.patch.ops);
 if (result.ok) {
-  // Update your AST with the modified pages
   project.pages = result.ops ? project.pages : project.pages;
   // result.inverse contains the undo ops
 }
@@ -30,138 +31,101 @@ if (result.ok) {
 
 ## API Reference
 
-### `createClaroAi(options?)`
+### `createBhasm(options?)`
 
-Creates the AI client. Returns `ClaroAi`.
+Creates the Bhasm client. Returns `Bhasm`.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `model` | `string` | `"qwen2.5:3b"` | Ollama model name |
 | `provider` | `ModelProvider` | Ollama | Custom backend (for testing) |
 
-### `ai.health()`
+### `bhasm.health()`
 
 Check if Ollama is running and the model is loaded.
 
-```typescript
-const h = await ai.health();
-// h.ok: boolean
-// h.models: [{ name: "qwen2.5:3b", size: 1840 }]
-// h.error?: string
-```
+### `bhasm.proposePatch(instruction, project)`
 
-### `ai.proposePatch(instruction, project)`
+Natural language → validated PatchOps. **Latency:** ~1-3s on qwen2.5:3b (8GB VRAM)
 
-Natural language → validated PatchOps.
-
-```typescript
-const proposal = await ai.proposePatch("make the hero title bigger and red", project);
-// proposal.workflow: "modify"
-// proposal.summary: "Made hero title larger and red"
-// proposal.patch: { summary, ops: PatchOp[] }
-// proposal.rationale?: string
-```
-
-**Latency:** ~1-3s on qwen2.5:3b (8GB VRAM)
-
-### `ai.describePatch(intendedSource, currentSource, project)`
+### `bhasm.describePatch(intendedSource, currentSource, project)`
 
 Diff → minimal PatchOps.
 
-```typescript
-const proposal = await ai.describePatch(
-  'heading hero { size: 32, color: #ef4444 }',
-  'heading hero { size: 24, color: #000000 }',
-  project,
-);
-```
-
-### `ai.review(project, includeLlm?)`
+### `bhasm.review(project, includeLlm?)`
 
 Rules engine + optional LLM feedback.
 
-```typescript
-const result = await ai.review(project, true);
-// result.issues: ReviewIssue[]
-// result.modelSourced: boolean
-
-for (const issue of result.issues) {
-  console.log(`${issue.severity}: ${issue.message}`);
-  if (issue.fix) {
-    // User can click "Fix" to apply issue.fix.ops
-  }
-}
-```
-
-### `ai.applyPatch(pages, ops)`
+### `bhasm.applyPatch(pages, ops)`
 
 Apply PatchOps to AST. Returns `{ ok, ops, inverse }`.
 
+## IPC Integration (Electron)
+
+Bhasm runs in the **main process** and communicates with the renderer via IPC.
+
+### Main Process Handler
+
 ```typescript
-const result = ai.applyPatch(project.pages, proposal.patch.ops);
-if (result.ok) {
-  // result.ops = the applied ops
-  // result.inverse = undo ops (for Ctrl+Z)
+// src-electron/bhasm-handler.ts
+import { createBhasm } from "@project/ai";
+import type { Project } from "@project/contracts";
+
+const bhasm = createBhasm();
+
+export function registerBhasmHandlers(ipcMain: Electron.IpcMain): void {
+  ipcMain.handle("bhasm:health", () => bhasm.health());
+  ipcMain.handle("bhasm:status", () => bhasm.status());
+  ipcMain.handle("bhasm:propose", (_e, instruction: string, project: Project) =>
+    bhasm.proposePatch(instruction, project),
+  );
+  ipcMain.handle("bhasm:describe", (_e, intended: string, current: string, project: Project) =>
+    bhasm.describePatch(intended, current, project),
+  );
+  ipcMain.handle("bhasm:review", (_e, project: Project) =>
+    bhasm.review(project),
+  );
 }
 ```
 
-## Building ProjectContext
-
-The AI needs context about the current project. Build it from your parsed AST:
+### Renderer-Side Client
 
 ```typescript
-import { buildContext } from "@project/ai";
+// src/lib/bhasm-client.ts
+import type { Project, PatchProposal, ReviewResult, ModelStatus } from "@project/contracts";
 
-const ctx = buildContext(project);
-// ctx.file: "current.cl"
-// ctx.astJson: JSON of pages
-// ctx.idMap: { "home.hero.title": { range, nodeId } }
-// ctx.diagnostics: parser errors
-// ctx.schemaHint: element/prop summary
+const ipc = window.electronAPI.ipcRenderer;
+
+export const bhasm = {
+  health: () => ipc.invoke("bhasm:health"),
+  status: () => ipc.invoke("bhasm:status"),
+  proposePatch: (instruction: string, project: Project): Promise<PatchProposal> =>
+    ipc.invoke("bhasm:propose", instruction, project),
+  describePatch: (intended: string, current: string, project: Project): Promise<PatchProposal> =>
+    ipc.invoke("bhasm:describe", intended, current, project),
+  review: (project: Project): Promise<ReviewResult> =>
+    ipc.invoke("bhasm:review", project),
+};
 ```
 
-## Applying Patches (End-to-End Flow)
+### Usage in React Component
 
-```typescript
-// 1. User types instruction
-const instruction = "make the hero title red";
+```tsx
+// components/AiChat.tsx
+import { bhasm } from "../lib/bhasm-client";
 
-// 2. AI generates PatchOps
-const proposal = await ai.proposePatch(instruction, project);
+function AiChat({ project }: { project: Project }) {
+  const handleSubmit = async (instruction: string) => {
+    const proposal = await bhasm.proposePatch(instruction, project);
+    if (proposal.patch.ops.length > 0) {
+      // Show diff view, let user accept/reject
+      setShowDiff(proposal);
+    }
+  };
 
-// 3. Validate (already done by AI layer, but double-check)
-import { validateOps } from "@project/contracts";
-const valid = validateOps(proposal.patch.ops);
-if (!valid.ok) {
-  console.error("Invalid ops:", valid.error);
-  return;
+  return <ChatInput onSubmit={handleSubmit} />;
 }
-
-// 4. Apply to AST
-const result = ai.applyPatch(project.pages, proposal.patch.ops);
-if (!result.ok) {
-  console.error("Apply failed:", result.error);
-  return;
-}
-
-// 5. Update editor state
-// (your Zustand store or whatever state management you use)
-updateProject({ ...project, pages: result.ok ? project.pages : project.pages });
-
-// 6. Store inverse for undo
-undoStack.push(result.inverse);
 ```
-
-## IPC Channels (Renderer ↔ Main Process)
-
-If running AI in the main process (recommended for Electron):
-
-| Channel | Args | Returns |
-|---------|------|---------|
-| `ai:status` | `{}` | `Rpc<ModelStatus>` |
-| `ai:complete` | `{ system, user }` | `Rpc<string>` |
-| `ai:propose` | `{ workflow, instruction, ctx }` | `Rpc<PatchProposal>` |
-| `ai:review` | `{ project }` | `Rpc<ReviewResult>` |
 
 ## Demo Flow (1.5 minutes)
 
@@ -179,6 +143,6 @@ If running AI in the main process (recommended for Electron):
 |-------|-----|
 | "Ollama not running" | Start Ollama app or run `ollama serve` |
 | "Model not found" | Run `ollama pull qwen2.5:3b` |
-| "Invalid JSON from model" | The AI layer retries once automatically. If still failing, check model health. |
+| "Invalid JSON from model" | Bhasm retries once automatically. If still failing, check model health. |
 | "Node not found" | The model may invent nodeIds. Check `project.pages` for valid IDs. |
 | Slow responses | qwen2.5:3b takes 1-3s on GPU. Ensure Ollama is using GPU, not CPU. |

@@ -1,13 +1,14 @@
 /**
- * High-level integration API for Agent 2 (IDE).
+ * Bhasm — the AI brain of CLARO Studio.
  *
- * This is the primary surface Agent 2 should call. It wraps all low-level
- * AI logic behind a simple, typed interface.
+ * High-level integration API for the IDE. This is the primary surface
+ * the editor calls. It wraps all low-level AI logic behind a simple,
+ * typed interface.
  *
  * Usage:
- *   import { createClaroAi } from "@project/ai";
- *   const ai = createClaroAi();
- *   const result = await ai.proposePatch("make the hero title red", project);
+ *   import { createBhasm } from "@project/ai";
+ *   const bhasm = createBhasm();
+ *   const result = await bhasm.proposePatch("make the hero title red", project);
  */
 
 import type {
@@ -26,7 +27,7 @@ import type { ModelProvider } from "@project/contracts";
 
 // ---------- public interface ----------
 
-export interface ClaroAi {
+export interface Bhasm {
   /** Check if Ollama is running and the model is available. */
   health(): Promise<{ ok: boolean; models: Array<{ name: string; size: number }>; error?: string }>;
 
@@ -55,14 +56,14 @@ export interface ClaroAi {
 
 // ---------- factory ----------
 
-export interface ClaroAiOptions {
+export interface BhasmOptions {
   /** Ollama model name. Defaults to "qwen2.5:3b". */
   model?: string;
   /** Custom ModelProvider (for testing or alternative backends). */
   provider?: ModelProvider;
 }
 
-export function createClaroAi(options: ClaroAiOptions = {}): ClaroAi {
+export function createBhasm(options: BhasmOptions = {}): Bhasm {
   const provider = options.provider ?? createOllamaProvider(options.model ?? "qwen2.5:3b");
 
   return {

@@ -69,7 +69,7 @@ async function ollamaGet<T>(path: string): Promise<T> {
 
 export function createOllamaProvider(model = "qwen2.5:3b"): ModelProvider {
   return {
-    id: `ollama:${model}`,
+    id: `bhasm:ollama:${model}`,
 
     async isInstalled(): Promise<boolean> {
       try {

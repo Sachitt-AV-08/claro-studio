@@ -1,5 +1,7 @@
 import type { MetricsSnapshot } from "./metrics.js";
-import type { ModelStatus } from "./ai.js";
+import type { ModelStatus, PatchProposal, ProjectContext } from "./ai.js";
+import type { ReviewResult } from "./review.js";
+import type { Project } from "./ast.js";
 
 /**
  * IPC / channel contract between the Electron main process and the renderer.
@@ -60,6 +62,11 @@ export type Channel =
   | { ch: "fs:watch"; args: { path: string }; ret: void }
   | { ch: "ai:status"; args: { }; ret: Rpc<ModelStatus> }
   | { ch: "ai:complete"; args: { system: string; user: string }; ret: Rpc<string> }
+  | { ch: "bhasm:health"; args: { }; ret: Rpc<{ ok: boolean; models: Array<{ name: string; size: number }>; error?: string }> }
+  | { ch: "bhasm:status"; args: { }; ret: Rpc<ModelStatus> }
+  | { ch: "bhasm:propose"; args: { instruction: string; project: Project }; ret: Rpc<PatchProposal> }
+  | { ch: "bhasm:describe"; args: { intended: string; current: string; project: Project }; ret: Rpc<PatchProposal> }
+  | { ch: "bhasm:review"; args: { project: Project }; ret: Rpc<ReviewResult> }
   | { ch: "android:open"; args: { path: string }; ret: Rpc<AndroidProjectInfo> }
   | { ch: "android:devices"; args: { }; ret: Rpc<AndroidDeviceInfo> }
   | { ch: "gradle:run"; args: { project: string; task: string }; ret: Rpc<{ taskId: string }> }
