@@ -11,7 +11,6 @@ import { validateOps } from "@project/contracts";
 import type { PatchProposal, ProjectContext, AiWorkflow, PatchOp } from "@project/contracts";
 import { ELEMENTS } from "@project/contracts";
 import type { ModelProvider } from "@project/contracts";
-import { applyOps } from "./patches.js";
 
 // ---------- DSL schema summary for the system prompt ----------
 
@@ -81,6 +80,7 @@ Given a user instruction and the current project AST, produce a JSON object with
 
 PATCH OP VOCABULARY (use ONLY these):
 {"op":"set_property","target":"<nodeId>","property":"<prop>","value":<PropValue>}
+{"op":"clear_property","target":"<nodeId>","property":"<prop>"}
 {"op":"set_text","target":"<nodeId>","value":"<string>"}
 {"op":"add_element","parent":"<nodeId>","element":<DslNode>,"position":"last"}
 {"op":"remove_element","target":"<nodeId>"}

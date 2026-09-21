@@ -131,11 +131,11 @@ describe("health", () => {
   });
 });
 
-describe("applyOps (stub)", () => {
+describe("applyOps (engine)", () => {
   it("applies set_property and returns inverse", () => {
     const project = sampleProject();
     const titleId = project.pages[0].children[0].children[0].nodeId; // hero.title
-    const result = applyOps(project.pages, [
+    const result = applyOps(project, [
       { op: "set_property", target: titleId, property: "color", value: { t: "color", v: "#ff0000" } },
     ]);
     expect(result.ok).toBe(true);
@@ -145,10 +145,32 @@ describe("applyOps (stub)", () => {
     }
   });
 
+  it("clear_property un-sets and inverse restores the previous value", () => {
+    const project = sampleProject();
+    const titleId = project.pages[0].children[0].children[0].nodeId;
+    const set = applyOps(project, [
+      { op: "set_property", target: titleId, property: "color", value: { t: "color", v: "#00ff00" } },
+    ]);
+    expect(set.ok).toBe(true);
+    if (!set.ok) return;
+
+    const clear = applyOps(project, [
+      { op: "clear_property", target: titleId, property: "color" },
+    ]);
+    expect(clear.ok).toBe(true);
+    if (clear.ok) {
+      const inv = clear.inverse[0];
+      expect(inv.op).toBe("set_property");
+      if (inv.op === "set_property") {
+        expect(inv.value).toEqual({ t: "color", v: "#00ff00" });
+      }
+    }
+  });
+
   it("applies set_text and returns inverse", () => {
     const project = sampleProject();
     const titleId = project.pages[0].children[0].children[0].nodeId;
-    const result = applyOps(project.pages, [
+    const result = applyOps(project, [
       { op: "set_text", target: titleId, value: "New Title" },
     ]);
     expect(result.ok).toBe(true);
@@ -157,7 +179,7 @@ describe("applyOps (stub)", () => {
   it("applies remove_element", () => {
     const project = sampleProject();
     const titleId = project.pages[0].children[0].children[0].nodeId;
-    const result = applyOps(project.pages, [
+    const result = applyOps(project, [
       { op: "remove_element", target: titleId },
     ]);
     expect(result.ok).toBe(true);
@@ -165,7 +187,7 @@ describe("applyOps (stub)", () => {
 
   it("returns error for missing target", () => {
     const project = sampleProject();
-    const result = applyOps(project.pages, [
+    const result = applyOps(project, [
       { op: "set_property", target: "nonexistent", property: "color", value: { t: "color", v: "#000" } },
     ]);
     expect(result.ok).toBe(false);

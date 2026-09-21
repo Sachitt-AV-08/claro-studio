@@ -24,6 +24,10 @@ interface RuleCheck {
   check(nodes: DslNode[]): ReviewIssue[];
 }
 
+function clearProp(nodeId: string, property: string): PatchOp {
+  return { op: "clear_property", target: nodeId, property };
+}
+
 const LAYOUT_PROPS = new Set(["gap", "padding", "margin", "align", "justify"]);
 const TEXT_ONLY_TYPES = new Set(["heading", "text", "badge"]);
 
@@ -63,12 +67,10 @@ const rules: RuleCheck[] = [
       function walk(ns: DslNode[]) {
         for (const n of ns) {
           if (n.type === "button") {
-            const text = n.props["text"];
-            const hasTextProp =
-              text &&
-              ((text.t === "str" && text.v.trim().length > 0) ||
-                (text.t === "ref" && text.v.length > 0));
-            if (!hasTextProp) {
+            const hasText =
+              (n.text !== undefined && n.text.trim().length > 0) ||
+              (n.textRef !== undefined && n.textRef.length > 0);
+            if (!hasText) {
               issues.push({
                 id: `button-no-text-${n.nodeId}`,
                 rule: "accessibility",
@@ -114,12 +116,7 @@ const rules: RuleCheck[] = [
                   nodeId: n.nodeId,
                   fix: {
                     summary: `Remove invalid property "${key}" from ${n.nodeId}`,
-                    ops: [
-                      {
-                        op: "remove_element",
-                        target: n.nodeId,
-                      } as PatchOp,
-                    ],
+                    ops: [clearProp(n.nodeId, key)],
                   },
                 });
               }
@@ -181,15 +178,7 @@ const rules: RuleCheck[] = [
                 nodeId: n.nodeId,
                 fix: {
                   summary: `Remove layout props from ${n.nodeId}`,
-                  ops: badProps.map(
-                    (p) =>
-                      ({
-                        op: "set_property",
-                        target: n.nodeId,
-                        property: p,
-                        value: { t: "str", v: "" },
-                      }) satisfies PatchOp,
-                  ),
+                  ops: badProps.map((p) => clearProp(n.nodeId, p)),
                 },
               });
             }

@@ -22,6 +22,7 @@ Given a "current source" and an "intended source", produce the smallest list of 
 
 PATCH OP VOCABULARY (use ONLY these):
 {"op":"set_property","target":"<nodeId>","property":"<prop>","value":<PropValue>}
+{"op":"clear_property","target":"<nodeId>","property":"<prop>"}
 {"op":"set_text","target":"<nodeId>","value":"<string>"}
 {"op":"add_element","parent":"<nodeId>","element":<DslNode>,"position":"last"}
 {"op":"remove_element","target":"<nodeId>"}
