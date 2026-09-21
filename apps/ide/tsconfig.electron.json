@@ -11,7 +11,8 @@
     "esModuleInterop": true,
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "composite": true
   },
   "include": ["src-electron/**/*"],
   "exclude": ["node_modules", "dist", "dist-electron"]
