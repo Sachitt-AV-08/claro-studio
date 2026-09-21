@@ -33,6 +33,10 @@ export interface DslNode {
   props: Record<string, PropValue>;
   /** components only */
   params?: ComponentParam[];
+  /** text content for textContent elements: `heading "Hello"` -> "Hello" */
+  text?: string;
+  /** text content bound to an @param ref: `heading @title` -> "title" */
+  textRef?: string;
   children: DslNode[];
   source: SourceRange;
 }
