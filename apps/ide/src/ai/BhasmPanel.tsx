@@ -8,6 +8,7 @@ import { Icon, type IconName } from "../components/Icon";
 
 interface PanelProps {
   onToggle: () => void;
+  height?: number;
 }
 
 interface ThreadEntry {
@@ -77,7 +78,7 @@ const STATUS_COPY: Record<string, string> = {
   "Error": "Error",
 };
 
-export const BhasmPanel: React.FC<PanelProps> = ({ onToggle }) => {
+export const BhasmPanel: React.FC<PanelProps> = ({ onToggle, height }) => {
   const [mode, setMode] = useState<BhasmMode>("code");
   const [input, setInput] = useState("");
   const [thread, setThread] = useState<ThreadEntry[]>([]);
@@ -231,7 +232,7 @@ export const BhasmPanel: React.FC<PanelProps> = ({ onToggle }) => {
   };
 
   return (
-    <section className="ai" data-testid="bhasm-panel">
+    <section className="ai" data-testid="bhasm-panel" style={height ? { height, maxHeight: "none" } : undefined}>
       <header className="ai__bar">
         <span className="ai__brand">
           <Icon name="sparkle" size={13} /> BHASM <span className="ai__local">· local</span>

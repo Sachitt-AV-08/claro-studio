@@ -7,11 +7,15 @@ import { BhasmPanel } from "./ai/BhasmPanel";
 import { ExtensionsView } from "./extensions/ExtensionsView";
 import { StitchView } from "./stitch/StitchView";
 import { TasksView } from "./tasks/TasksView";
+import { BuildView } from "./build/BuildView";
 import { CommandPalette, makeExportCommands, type PaletteCommand } from "./chrome/CommandPalette";
 import { ProblemsPanel } from "./chrome/ProblemsPanel";
-import { registerClaroLanguage, createClaroCompletionProvider, createIdeaHoverProvider, ideaAtLine } from "./dsl/claroLanguage";
+import { registerClaroLanguage, createClaroCompletionProvider, createIdeaHoverProvider, ideaAtLine, installWorkbenchLanguages } from "./dsl/claroLanguage";
 import { format, parse } from "@project/dsl";
 import { Icon, type IconName } from "./components/Icon";
+import { Splitter } from "./components/Splitter";
+import { KotlinPreview } from "./preview/KotlinPreview";
+import { PythonConsole } from "./preview/PythonConsole";
 
 // Use the bundled Monaco instance (vite-plugin-monaco-editor) instead of the
 // CDN-loaded one that @monaco-editor/react pulls in by default. Without this,
@@ -23,6 +27,7 @@ loader.config({ monaco });
 // before the Editor mounts, so the theme/language are available when the editor
 // creates its instance (also avoids StrictMode double-registration).
 registerClaroLanguage();
+installWorkbenchLanguages();
 monaco.languages.registerCompletionItemProvider("claro", createClaroCompletionProvider());
 monaco.languages.registerHoverProvider("claro", createIdeaHoverProvider());
 
@@ -36,7 +41,7 @@ function useDebounce<T>(value: T, delay: number): T {
   return debounced;
 }
 
-type ViewId = "explorer" | "bhasm" | "stitch" | "tasks" | "extensions";
+type ViewId = "explorer" | "bhasm" | "stitch" | "tasks" | "extensions" | "build";
 
 interface ViewDef {
   id: ViewId;
@@ -50,7 +55,48 @@ const ACTIVITY_VIEWS: ViewDef[] = [
   { id: "bhasm", icon: "sparkle", title: "BHASM" },
   { id: "tasks", icon: "checklist", title: "Tasks" },
   { id: "extensions", icon: "extensions", title: "Extensions" },
+  { id: "build", icon: "package", title: "Build" },
 ];
+
+type TabId = "cl" | "pkg" | "py" | "kt";
+
+const EDITOR_LANG: Record<TabId, string> = {
+  cl: "claro",
+  pkg: "json",
+  py: "python",
+  kt: "kotlin",
+};
+
+const PY_STARTER = `# logic.py — complementary app logic
+TITLE = "My App"
+SUB = "Python powers the behaviour"
+CLICKS = 0
+
+def on_tap():
+    global CLICKS
+    CLICKS = CLICKS + 1
+    print("tapped", CLICKS, "time(s)")
+
+title(TITLE)
+label(SUB)
+button("Tap me", on_tap)
+`;
+
+const KT_STARTER = `@Composable
+fun HomeScreen() {
+    Column(modifier = Modifier.fillMaxWidth().padding(16)) {
+        Text("Welcome to Kotlin", Modifier.padding(8))
+        Button(onClick = { }) {
+            Text("Tap me")
+        }
+        Spacer(modifier = Modifier.height(12))
+        Row {
+            Text("Row A", Modifier.padding(8))
+            Text("Row B", Modifier.padding(8))
+        }
+    }
+}
+`;
 
 export const App: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewId>("explorer");
@@ -61,8 +107,43 @@ export const App: React.FC = () => {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [maximized, setMaximized] = useState(false);
   const [activityHidden, setActivityHidden] = useState(false);
-  // Multi-language tabs: "cl" (the Claro source) or "pkg" (the artifact JSON).
-  const [tab, setTab] = useState<"cl" | "pkg">("cl");
+  // Tabs: "cl" (Claro source), "pkg" (artifact JSON), "py" (logic.py), "kt" (screen.kt).
+  const [tab, setTab] = useState<TabId>("cl");
+  const [files, setFiles] = useState<{ py: string; kt: string }>({ py: PY_STARTER, kt: KT_STARTER });
+  const [previewMode, setPreviewMode] = useState<"cl" | "py" | "kt">("cl");
+
+  // Resizable split panes (persisted to localStorage).
+  const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+  const MIN_EXPLORER = 180;
+  const MAX_EXPLORER = 460;
+  const MIN_PREVIEW = 300;
+  const MAX_PREVIEW = 760;
+  const DEFAULT_PANES = { explorer: 260, preview: 380 };
+  const [paneWidths, setPaneWidths] = useState<{ explorer: number; preview: number }>(() => {
+    try {
+      const raw = localStorage.getItem("claro.workbench.panes");
+      if (raw) {
+        const v = JSON.parse(raw) as Partial<{ explorer: number; preview: number }>;
+        return {
+          explorer: clamp(v.explorer ?? DEFAULT_PANES.explorer, MIN_EXPLORER, MAX_EXPLORER),
+          preview: clamp(v.preview ?? DEFAULT_PANES.preview, MIN_PREVIEW, MAX_PREVIEW),
+        };
+      }
+    } catch {
+      /* ignore corrupt storage */
+    }
+    return DEFAULT_PANES;
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem("claro.workbench.panes", JSON.stringify(paneWidths));
+    } catch {
+      /* ignore */
+    }
+  }, [paneWidths]);
+
+  const [aiHeight, setAiHeight] = useState(240);
+  const sashRef = useRef<HTMLDivElement>(null);
 
   const {
     source,
@@ -79,6 +160,41 @@ export const App: React.FC = () => {
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const debouncedSource = useDebounce(source, 150);
 
+  // Shrink split panes to fit when the window gets too small for the editor.
+  useEffect(() => {
+    const el = sashRef.current;
+    if (!el) return;
+    let ro: ResizeObserver | undefined;
+    try {
+      ro = new ResizeObserver(() => {
+        const w = el.clientWidth;
+        if (w <= 0) return;
+        setPaneWidths((prev) => {
+          const fixed = (showExplorer ? prev.explorer + 6 : 0) + (showPreview ? prev.preview + 6 : 0);
+          const over = fixed + 300 - w;
+          if (over <= 0) return prev;
+          let shrink = Math.round(over);
+          let explorer = prev.explorer;
+          let preview = prev.preview;
+          if (showExplorer) {
+            const take = Math.min(explorer - MIN_EXPLORER, Math.ceil(shrink / 2));
+            explorer -= take;
+            shrink -= take;
+          }
+          if (showPreview) {
+            preview = Math.max(MIN_PREVIEW, preview - shrink);
+          }
+          if (explorer === prev.explorer && preview === prev.preview) return prev;
+          return { explorer, preview };
+        });
+      });
+      ro.observe(el);
+    } catch {
+      /* ResizeObserver unavailable */
+    }
+    return () => ro?.disconnect();
+  }, [showExplorer, showPreview]);
+
   // Sync editor content when source changes (from undo/redo/AI)
   useEffect(() => {
     const editor = editorRef.current;
@@ -92,18 +208,13 @@ export const App: React.FC = () => {
     }
   }, [debouncedSource, tab]);
 
-  // Handle editor text change → parse → reformat → preview
+  // Handle editor text change → parse for diagnostics/preview only. Never
+  // rewrite the model while the user is typing (auto-canonicalizing every
+  // keystroke caused cursor jumps and broke undo). Formatting happens on
+  // demand via Format Document (Ctrl+K).
   const handleEditorChange = (value: string | undefined) => {
     if (value === undefined) return;
-    // Parse, then reformat to keep canonical source
-    try {
-      const parsed = parse(value);
-      const canonical = format(parsed);
-      setSource(canonical);
-    } catch {
-      // If parse throws (shouldn't), keep raw
-      setSource(value);
-    }
+    setSource(value);
   };
 
   // Window controls via Electron API (graceful fallback in browser)
@@ -119,8 +230,11 @@ export const App: React.FC = () => {
     const onView = (e: Event) => {
       const view = (e as CustomEvent).detail;
       if (view === "stitch" || view === "bhasm" || view === "tasks") {
+        if (view === "bhasm") {
+          setShowAi(true);
+          return;
+        }
         setActiveView(view);
-        if (view === "bhasm") setShowAi(true);
       }
     };
     window.addEventListener("claro:view", onView);
@@ -150,9 +264,37 @@ export const App: React.FC = () => {
     return unsubscribe;
   }, [win]);
 
+  // The preview follows the active tab (Claro UI / Python console / Kotlin compose).
+  useEffect(() => {
+    if (tab === "cl" || tab === "py" || tab === "kt") setPreviewMode(tab);
+  }, [tab]);
+
   const pageName = project.pages[0]?.name ?? "Home";
   const activeFileName = `${pageName}.cl`;
   const pkgFileName = `${pageName}.package.json`;
+
+  const tabFileNames: Record<TabId, string> = {
+    cl: activeFileName,
+    pkg: pkgFileName,
+    py: "logic.py",
+    kt: "screen.kt",
+  };
+
+  const editorValue =
+    tab === "cl"
+      ? source
+      : tab === "pkg"
+        ? JSON.stringify(project, null, 2)
+        : tab === "py"
+          ? files.py
+          : files.kt;
+
+  const handleAnyChange = (value: string | undefined) => {
+    if (value === undefined) return;
+    if (tab === "cl") handleEditorChange(value);
+    else if (tab === "py") setFiles((f) => ({ ...f, py: value }));
+    else if (tab === "kt") setFiles((f) => ({ ...f, kt: value }));
+  };
 
   const paletteCommands = useMemo<PaletteCommand[]>(() => {
     const go = (view: ViewId) => {
@@ -212,6 +354,40 @@ export const App: React.FC = () => {
         run: () => setShowPreview((v) => !v),
       },
       {
+        id: "view.build",
+        label: "Build App Package (EXE installer)",
+        group: "build",
+        icon: "package" as IconName,
+        run: () => go("build"),
+      },
+      {
+        id: "editor.format",
+        label: "Format Document (Ctrl+K)",
+        group: "editor",
+        icon: "code" as IconName,
+        run: () => formatRef.current(),
+      },
+      {
+        id: "bhasm.seed.cursor",
+        label: "Seed BHASM from idea at cursor",
+        group: "bhasm",
+        icon: "comment" as IconName,
+        run: () => {
+          const editor = editorRef.current;
+          const pos = editor?.getPosition();
+          if (!editor || !pos) return;
+          const line = editor.getModel()?.getLineContent(pos.lineNumber) ?? "";
+          const idea = ideaAtLine(line);
+          if (!idea) return;
+          setShowAi(true);
+          setTimeout(() => {
+            window.dispatchEvent(
+              new CustomEvent("claro:bhasm-prompt", { detail: { idea, mode: "explain-comment" } }),
+            );
+          }, 80);
+        },
+      },
+      {
         id: "bhasm.seed",
         label: "Seed BHASM from the top # idea",
         group: "bhasm",
@@ -242,10 +418,39 @@ export const App: React.FC = () => {
     editor.focus();
   };
 
-  // single-click on a "#" idea line → seed BHASM explain-comment
+  // Format Document: canonicalize the open source without fighting the cursor.
+  const formatDocument = () => {
+    const editor = editorRef.current;
+    if (!editor || tab !== "cl") return;
+    const model = editor.getModel();
+    if (!model) return;
+    try {
+      const canonical = format(parse(model.getValue()));
+      const pos = editor.getPosition();
+      const sel = editor.getSelection();
+      editor.pushUndoStop();
+      model.setValue(canonical);
+      editor.pushUndoStop();
+      if (pos) editor.setPosition(pos);
+      if (sel && !sel.isEmpty()) editor.setSelection(sel);
+    } catch {
+      /* leave the text as-is when it won't parse */
+    }
+  };
+  const formatRef = useRef(formatDocument);
+  formatRef.current = formatDocument;
+
+  // double-click on a "#" idea line → seed BHASM explain-comment
   const mountEditor = (editor: monaco.editor.IStandaloneCodeEditor) => {
     editorRef.current = editor;
+    editor.addAction({
+      id: "claro.format-document",
+      label: "Format Document",
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK],
+      run: () => formatRef.current(),
+    });
     editor.onMouseDown((e) => {
+      if (e.event.detail < 2) return;
       const pos = e.target.position;
       if (!pos) return;
       const line = editor.getModel()?.getLineContent(pos.lineNumber) ?? "";
@@ -265,7 +470,6 @@ export const App: React.FC = () => {
     const onSeed = (e: Event) => {
       const { idea } = (e as CustomEvent).detail as { idea: string };
       setShowAi(true);
-      window.dispatchEvent(new CustomEvent("claro:view", { detail: "bhasm" }));
       // short delay so the panel mounts before we dispatch the seed fill
       setTimeout(() => {
         window.dispatchEvent(new CustomEvent("claro:bhasm-prompt", { detail: { idea, mode: "explain-comment" } }));
@@ -276,7 +480,7 @@ export const App: React.FC = () => {
   }, []);
 
   return (
-    <div className={`app${activityHidden ? " app--activity-hidden" : ""}`}>
+    <div className={`app${activityHidden ? " app--activity-hidden" : ""}${showAi ? " app--bottom-open" : ""}`}>
       {/* Titlebar */}
       <div className="titlebar" style={{ WebkitAppRegion: "drag" }}>
         <button
@@ -289,7 +493,7 @@ export const App: React.FC = () => {
         </button>
         <div className="titlebar__brand">
           <Icon name="sparkle" size={14} />
-          CLARO Studio
+          CLARO Workbench
         </div>
         <button
           className="titlebar__palette"
@@ -297,7 +501,7 @@ export const App: React.FC = () => {
           title="Command Palette (Ctrl+Shift+P)"
           style={{ WebkitAppRegion: "no-drag" }}
         >
-          <Icon name="search" size={13} /> {tab === "cl" ? activeFileName : pkgFileName}
+          <Icon name="search" size={13} /> {tabFileNames[tab]}
         </button>
         <div className="titlebar__spacer" />
         <div className="titlebar__controls" style={{ WebkitAppRegion: "no-drag" }}>
@@ -322,7 +526,23 @@ export const App: React.FC = () => {
             title={activeFileName}
           >
             <Icon name="file-code" size={14} />
-            <span className="tab__label">{activeFileName}</span>
+            <span className="tab__label">{tabFileNames.cl}</span>
+          </button>
+          <button
+            className={`tab${tab === "py" ? " tab--active" : ""}`}
+            onClick={() => setTab("py")}
+            title="logic.py · Python logic (preview: console runtime)"
+          >
+            <Icon name="file-text" size={14} />
+            <span className="tab__label">logic.py</span>
+          </button>
+          <button
+            className={`tab${tab === "kt" ? " tab--active" : ""}`}
+            onClick={() => setTab("kt")}
+            title="screen.kt · Kotlin Compose (preview: rendered composables)"
+          >
+            <Icon name="file-code" size={14} />
+            <span className="tab__label">screen.kt</span>
           </button>
           <button
             className={`tab${tab === "pkg" ? " tab--active" : ""}`}
@@ -330,7 +550,7 @@ export const App: React.FC = () => {
             title={`${pkgFileName} · exported artifact (JSON)`}
           >
             <Icon name="file-text" size={14} />
-            <span className="tab__label">{pkgFileName}</span>
+            <span className="tab__label">{tabFileNames.pkg}</span>
           </button>
         </div>
         <div className="tabstrip__actions">
@@ -367,9 +587,12 @@ export const App: React.FC = () => {
             key={view.id}
             className={`activitybar__btn ${activeView === view.id ? "activitybar__btn--active" : ""}`}
             onClick={() => {
+              if (view.id === "bhasm") {
+                setShowAi((v) => !v);
+                return;
+              }
               setActiveView(view.id);
               if (view.id === "explorer") setShowExplorer(true);
-              if (view.id === "bhasm") setShowAi(true);
             }}
             title={view.title}
           >
@@ -387,18 +610,11 @@ export const App: React.FC = () => {
       </aside>
 
       {/* Workbench */}
-      <main className={`workbench${showAi ? "" : " workbench--no-ai"}`}>
-        {activeView === "extensions" ? (
-          <ExtensionsView />
-        ) : activeView === "stitch" ? (
-          <StitchView />
-        ) : activeView === "tasks" ? (
-          <TasksView />
-        ) : (
-          <div className="workbench__sash">
+      <main className={`workbench${showProblems ? "" : " workbench--no-problems"}`}>
+        <div ref={sashRef} className={`workbench__sash${activeView === "explorer" ? "" : " view-slot--hidden"}`}>
           {/* Explorer */}
           {showExplorer && (
-            <aside className="pane pane--explorer" style={{ width: "var(--pane-explorer-width)" }}>
+            <aside className="pane pane--explorer" style={{ width: paneWidths.explorer, flex: "0 0 auto" }}>
               <div className="pane__header">
                 <span>Explorer</span>
                 <button className="pane__action" title="New file (coming soon)" disabled>
@@ -413,6 +629,15 @@ export const App: React.FC = () => {
                 <li className="explorer__file" onClick={() => setTab("pkg")}>
                   <Icon name="file-text" size={15} />
                   <span>{pkgFileName}</span>
+                </li>
+                <li className="explorer__group-label">LOGIC</li>
+                <li className="explorer__file" onClick={() => setTab("py")} title="logic.py — Python logic">
+                  <Icon name="file-text" size={15} />
+                  <span>logic.py</span>
+                </li>
+                <li className="explorer__file" onClick={() => setTab("kt")} title="screen.kt — Kotlin Compose">
+                  <Icon name="file-code" size={15} />
+                  <span>screen.kt</span>
                 </li>
                 {project.components.length > 0 && (
                   <li className="explorer__group-label">COMPONENTS</li>
@@ -431,11 +656,18 @@ export const App: React.FC = () => {
             </aside>
           )}
 
+          {showExplorer && (
+            <Splitter
+              onDelta={(d) => setPaneWidths((w) => ({ ...w, explorer: clamp(w.explorer + d, MIN_EXPLORER, MAX_EXPLORER) }))}
+              onReset={() => setPaneWidths((w) => ({ ...w, explorer: DEFAULT_PANES.explorer }))}
+            />
+          )}
+
           {/* Editor */}
-          <section className="pane pane--editor" style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+          <section className="pane pane--editor" style={{ flex: "1 1 auto", display: "flex", flexDirection: "column", minWidth: 0 }}>
             <div className="pane__header pane__header--editor">
               <span>
-                <Icon name="code" size={12} /> {tab === "cl" ? "Editor" : "Artifact"}
+                <Icon name="code" size={12} /> {tabFileNames[tab]}
               </span>
               <span className="pane__sub">
                 {tab === "cl" ? (
@@ -454,11 +686,11 @@ export const App: React.FC = () => {
             <Editor
               height="100%"
               theme="claro-dark"
-              defaultLanguage={tab === "cl" ? "claro" : "json"}
-              language={tab === "cl" ? "claro" : "json"}
+              defaultLanguage={EDITOR_LANG[tab]}
+              language={EDITOR_LANG[tab]}
               key={tab}
-              value={tab === "cl" ? source : JSON.stringify(project, null, 2)}
-              onChange={tab === "cl" ? handleEditorChange : undefined}
+              value={editorValue}
+              onChange={handleAnyChange}
               options={{
                 fontFamily: "var(--font-mono)",
                 fontSize: 14,
@@ -480,21 +712,47 @@ export const App: React.FC = () => {
 
           {/* Preview */}
           {showPreview && (
-            <aside className="pane pane--preview" style={{ width: "minmax(var(--pane-preview-min), 1fr)" }}>
+            <>
+              <Splitter
+                onDelta={(d) => setPaneWidths((w) => ({ ...w, preview: clamp(w.preview - d, MIN_PREVIEW, MAX_PREVIEW) }))}
+                onReset={() => setPaneWidths((w) => ({ ...w, preview: DEFAULT_PANES.preview }))}
+              />
+              <aside className="pane pane--preview" style={{ width: paneWidths.preview, flex: "0 0 auto" }}>
               <div className="pane__header">
                 <span>
                   <Icon name="eye" size={12} /> Preview
+                  <span className="preview__mode">
+                    {previewMode === "cl" ? "Claro UI" : previewMode === "py" ? "Python" : "Kotlin"}
+                  </span>
                 </span>
                 <button className="pane__action" title="Device toggle (phone/tablet/desktop)">
                   <Icon name="device-mobile" size={14} />
                 </button>
               </div>
-              <DevicePreview project={project} selection={selection} onSelect={select} />
+              {previewMode === "py" ? (
+                <PythonConsole source={files.py} />
+              ) : previewMode === "kt" ? (
+                <KotlinPreview source={files.kt} />
+              ) : (
+                <DevicePreview project={project} selection={selection} onSelect={select} />
+              )}
             </aside>
+            </>
           )}
           </div>
-        )}
-        {showProblems && (
+        <section className={`view-slot${activeView === "stitch" ? "" : " view-slot--hidden"}`}>
+          <StitchView />
+        </section>
+        <section className={`view-slot${activeView === "tasks" ? "" : " view-slot--hidden"}`}>
+          <TasksView />
+        </section>
+        <section className={`view-slot${activeView === "extensions" ? "" : " view-slot--hidden"}`}>
+          <ExtensionsView />
+        </section>
+        <section className={`view-slot${activeView === "build" ? "" : " view-slot--hidden"}`}>
+          <BuildView project={project} pyCode={files.py} ktCode={files.kt} />
+        </section>
+        {showProblems && activeView === "explorer" && (
           <ProblemsPanel
             errors={errors}
             warnings={warnings}
@@ -505,7 +763,17 @@ export const App: React.FC = () => {
       </main>
 
       {/* BHASM panel */}
-      {showAi && <BhasmPanel onToggle={() => setShowAi(false)} />}
+      {showAi && (
+        <>
+          <Splitter
+            axis="row"
+            onDelta={(d) => setAiHeight((h) => clamp(h + d, 168, 520))}
+            onReset={() => setAiHeight(240)}
+            title="Drag to resize BHASM panel · double-click to reset"
+          />
+          <BhasmPanel onToggle={() => setShowAi(false)} height={aiHeight} />
+        </>
+      )}
 
       {/* Command Palette */}
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} makeCommands={() => paletteCommands} />

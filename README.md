@@ -1,4 +1,4 @@
-# CLARO Studio
+# CLARO Workbench
 
 Local-first, AI-native development environment for **Claro** (`.cl`) — a tiny, reversible UI language.
 
@@ -6,7 +6,7 @@ Local-first, AI-native development environment for **Claro** (`.cl`) — a tiny,
 
 ## What it is
 
-CLARO Studio is a desktop IDE (Electron + Monaco) for building UIs in Claro.
+CLARO Workbench is a desktop IDE (Electron + Monaco) for building UIs in Claro.
 Edit the source or edit the preview — every change is expressed as a **PatchOp**, which is
 reversible, so **undo/redo is free**. The whole thing runs offline: the AI brain is a local
 Ollama model (`qwen2.5:3b`), no cloud, no telemetry.
@@ -30,7 +30,7 @@ Ollama model (`qwen2.5:3b`), no cloud, no telemetry.
 - Tolerant parser, canonical formatter, patch engine (`packages/dsl`)
 - Local AI structured patches, reviewer, offline proof (`packages/ai`, Ollama `qwen2.5:3b`)
 - Dark IDE workbench with custom title bar, activity bar, explorer, preview, status bar
-- Packaged Windows runnable: `apps/ide/release/win-unpacked/CLARO Studio.exe`
+- Packaged Windows runnable: `apps/ide/release/win-unpacked/CLARO Workbench.exe`
 
 ### Planned (this build)
 1. **Icons & chrome** — official Codicons, no emoji; tab strip; VS Code explorer; status bar groups
@@ -65,7 +65,7 @@ npm run dev          # dev mode (localhost:5173 + Electron)
 npm run dist         # build + package win-unpacked exe
 ```
 
-The packaged app lives at `apps/ide/release/win-unpacked/CLARO Studio.exe`.
+The packaged app lives at `apps/ide/release/win-unpacked/CLARO Workbench.exe`.
 The Electron binary is copied into `apps/ide/node_modules/electron` — don't let a fresh
 `npm install` remove it.
 

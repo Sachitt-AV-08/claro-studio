@@ -4,9 +4,12 @@ import { useStitchStore, destProject, checkOps, type StitchProposal } from "./st
 import { DevicePreview } from "../preview/DevicePreview";
 import { extractIdeas } from "../bhasm/skills/ideas";
 import { Icon } from "../components/Icon";
+import { Splitter } from "../components/Splitter";
+
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 /**
- * Stitch — CLARO Studio's primary view.
+ * Stitch — CLARO Workbench's primary view.
  *
  * Google-Stitch style merge UX for the project's own evolution:
  *   goal bar  -> the active "#" idea (the project brain)
@@ -26,6 +29,7 @@ export const StitchView: React.FC = () => {
   const setGoal = useStitchStore((s) => s.setGoal);
 
   const [showSeam, setShowSeam] = useState(true);
+  const [srcWidth, setSrcWidth] = useState(260);
   const ideas = useMemo(() => extractIdeas(source), [source]);
 
   // keep goal in sync with the first idea automatically
@@ -92,13 +96,18 @@ export const StitchView: React.FC = () => {
 
       {/* The seam */}
       <div className="stitch__body">
-        <section className="stitch__col stitch__col--a">
+        <section className="stitch__col stitch__col--a" style={{ width: srcWidth }}>
           <div className="stitch__col-head">
             <span className="stitch__tag stitch__tag--a">SOURCE A</span>
             <span className="stitch__col-sub">current project</span>
           </div>
           <DevicePreview project={project} selection={selection} onSelect={() => {}} showToolbar={false} />
         </section>
+
+        <Splitter
+          onDelta={(d) => setSrcWidth((w) => clamp(w + d, 200, 440))}
+          onReset={() => setSrcWidth(260)}
+        />
 
         <section className="stitch__seam">
           <div className="stitch__seam-head">

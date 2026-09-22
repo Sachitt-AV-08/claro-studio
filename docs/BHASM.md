@@ -1,6 +1,6 @@
 # BHASM — the internal AI extension
 
-BHASM is CLARO Studio's AI brain, built as an **opencode-style internal extension**:
+BHASM is CLARO Workbench's AI brain, built as an **opencode-style internal extension**:
 an agent definition, a typed tool registry, and a skill layer, wired into a streaming
 chat loop. It "lives internally" and is also inspectable from an **Extensions** view.
 

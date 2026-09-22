@@ -3,7 +3,7 @@ import type { Project, DslNode, PropValue } from "@project/contracts";
 /**
  * Export the current project to a single-file offline HTML.
  * Self-contained: every style is inline (no CSS variables), so the artifact can
- * be opened anywhere, even with no CLARO Studio running.
+ * be opened anywhere, even with no CLARO Workbench running.
  */
 
 function num(p: Record<string, PropValue>, k: string): number | null {
@@ -107,6 +107,36 @@ function escapeHtml(s: string): string {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
+}
+
+/**
+ * Same as renderProjectHtml but ships the accompanying logic.py / screen.kt
+ * sources as a collapsible "Source code" drawer, so the built EXE carries the
+ * full project (UI + Python/Kotlin logic) in one self-contained file.
+ */
+export function renderPackagedHtml(project: Project, pyCode: string, ktCode: string): string {
+  const base = renderProjectHtml(project);
+  const parts = [
+    pyCode && pyCode.trim() ? `## logic.py\n${pyCode.trim()}` : "",
+    ktCode && ktCode.trim() ? `## screen.kt\n${ktCode.trim()}` : "",
+  ].filter(Boolean);
+  if (parts.length === 0) return base;
+
+  const drawer = `
+<div class="clr-src">
+  <details>
+    <summary>Source code (${project.pages[0]?.name ?? "app"})</summary>
+    <pre>${escapeHtml(parts.join("\n\n"))}</pre>
+  </details>
+</div>`;
+  const extraStyle = `
+  .clr-src { margin: 0 auto; width: min(720px, 100vw); padding: 0 32px 40px; }
+  .clr-src details { border: 1px solid rgba(255,255,255,.1); border-radius: 12px; padding: 10px 14px; background: rgba(255,255,255,.03); }
+  .clr-src summary { cursor: pointer; color: #a08cff; font-size: 13px; -webkit-user-select: none; user-select: none; }
+  .clr-src pre { white-space: pre-wrap; word-break: break-word; font-size: 12px; color: #cfcad6; margin-top: 10px; }`;
+  return base
+    .replace("</style>", `${extraStyle}\n</style>`)
+    .replace("</body>", `${drawer}\n</body>`);
 }
 
 export function renderProjectHtml(project: Project): string {

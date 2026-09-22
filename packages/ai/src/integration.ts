@@ -1,5 +1,5 @@
 /**
- * Bhasm — the AI brain of CLARO Studio.
+ * Bhasm — the AI brain of CLARO Workbench.
  *
  * High-level integration API for the IDE. This is the primary surface
  * the editor calls. It wraps all low-level AI logic behind a simple,

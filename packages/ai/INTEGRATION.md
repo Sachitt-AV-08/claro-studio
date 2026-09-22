@@ -1,6 +1,6 @@
 # Bhasm — IDE Integration Guide
 
-**Bhasm** is the AI brain of CLARO Studio. It runs locally on Ollama (`qwen2.5:3b`) and proposes UI patches from natural language.
+**Bhasm** is the AI brain of CLARO Workbench. It runs locally on Ollama (`qwen2.5:3b`) and proposes UI patches from natural language.
 
 ## Quick Start
 

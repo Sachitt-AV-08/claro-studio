@@ -169,6 +169,96 @@ export function ideaAtLine(line: string): string | null {
   return m ? m[1].trim() : null;
 }
 
+/**
+ * Call once at app start. Guarantees indentation-friendly editing for the
+ * bundled Python + Kotlin languages (Monaco ships their tokenizers in the
+ * bundle; we add the auto-close / on-enter behaviour that makes typing feel
+ * like an installed extension).
+ */
+export function installWorkbenchLanguages(): void {
+  const known = new Set(monaco.languages.getLanguages().map((l) => l.id));
+
+  if (known.has("python")) {
+    try {
+      monaco.languages.setLanguageConfiguration("python", {
+        brackets: [
+          ["{", "}"],
+          ["[", "]"],
+          ["(", ")"],
+        ],
+        autoClosingPairs: [
+          { open: "{", close: "}" },
+          { open: "[", close: "]" },
+          { open: "(", close: ")" },
+          { open: '"', close: '"', notIn: ["string"] },
+          { open: "'", close: "'", notIn: ["string", "comment"] },
+        ],
+        surroundingPairs: [
+          { open: "{", close: "}" },
+          { open: "[", close: "]" },
+          { open: "(", close: ")" },
+          { open: '"', close: '"' },
+          { open: "'", close: "'" },
+        ],
+        onEnterRules: [
+          {
+            beforeText: /^\s*(def|class|if|elif|else|for|while|try|except|with)\b.*:\s*$/,
+            action: { indentAction: monaco.languages.IndentAction.Indent },
+          },
+          { beforeText: /:\s*$/, action: { indentAction: monaco.languages.IndentAction.Indent } },
+        ],
+        folding: {
+          markers: {
+            start: /^\s*#\s*region\b/,
+            end: /^\s*#\s*endregion\b/,
+          },
+        },
+      });
+    } catch {
+      /* language not available in this bundle */
+    }
+  }
+
+  if (known.has("kotlin")) {
+    try {
+      monaco.languages.setLanguageConfiguration("kotlin", {
+        brackets: [
+          ["{", "}"],
+          ["[", "]"],
+          ["(", ")"],
+        ],
+        autoClosingPairs: [
+          { open: "{", close: "}" },
+          { open: "[", close: "]" },
+          { open: "(", close: ")" },
+          { open: '"', close: '"' },
+          { open: "'", close: "'" },
+          { open: "/*", close: "*/", notIn: ["comment"] },
+        ],
+        surroundingPairs: [
+          { open: "{", close: "}" },
+          { open: "[", close: "]" },
+          { open: "(", close: ")" },
+          { open: '"', close: '"' },
+          { open: "'", close: "'" },
+        ],
+        onEnterRules: [
+          { beforeText: /\{/, action: { indentAction: monaco.languages.IndentAction.Indent } },
+          { beforeText: /^\s*\}\)?\s*$/, action: { indentAction: monaco.languages.IndentAction.Outdent } },
+        ],
+        folding: {
+          markers: {
+            start: /^\s*\/\/\s*region\b/,
+            end: /^\s*\/\/\s*endregion\b/,
+          },
+        },
+      });
+    } catch {
+      /* language not available in this bundle */
+    }
+  }
+}
+
 /** Get completion items for the Claro language (element names + their props). */
 export function createClaroCompletionProvider(): monaco.languages.CompletionItemProvider {
   return {

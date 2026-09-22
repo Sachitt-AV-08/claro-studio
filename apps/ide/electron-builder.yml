@@ -1,9 +1,11 @@
-appId: com.claro.studio
-productName: CLARO Studio
-copyright: "Copyright © 2026 CLARO Studio"
+appId: com.claro.workbench
+productName: CLARO Workbench
+electronVersion: 29.4.6
+copyright: "Copyright © 2026 GLARO Workbench"
 files:
   - "dist/**"
   - "dist-electron/**"
+  - "vendor/**"
   - "skills/**"
   - "package.json"
 asar: false

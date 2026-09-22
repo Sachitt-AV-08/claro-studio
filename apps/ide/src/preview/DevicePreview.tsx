@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { Project } from "@project/contracts";
 import { RenderTree } from "./RenderTree";
 import { Icon, type IconName } from "../components/Icon";
@@ -73,8 +73,33 @@ export const DevicePreview: React.FC<DevicePreviewProps> = ({
 }) => {
   const [device, setDevice] = useState<DeviceId>("phone");
   const [stage, setStage] = useState<{ w: number; h: number } | null>(null);
+  const hostRef = useRef<HTMLDivElement | null>(null);
   const spec = DEVICES.find((d) => d.id === device) ?? DEVICES[0];
   const isPhone = device === "phone";
+
+  // Keep the fit-to-frame scale accurate through any window/panel resize.
+  // ResizeObserver updates continuously (vs. one-shot ref callbacks that
+  // lagged behind drag-resizes); rAF-throttled so renders stay cheap.
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    const measure = () => {
+      const w = host.clientWidth;
+      const h = host.clientHeight;
+      setStage((s) => (s && Math.abs(s.w - w) < 1 && Math.abs(s.h - h) < 1 ? s : { w, h }));
+    };
+    measure();
+    let raf = 0;
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(measure);
+    });
+    observer.observe(host);
+    return () => {
+      cancelAnimationFrame(raf);
+      observer.disconnect();
+    };
+  }, []);
 
   const outerW = spec.width + FRAME_OUTER_PAD.width;
   const outerH = spec.height + FRAME_OUTER_PAD.height;
@@ -84,11 +109,7 @@ export const DevicePreview: React.FC<DevicePreviewProps> = ({
   return (
     <div
       className={`preview__device${showToolbar ? "" : " preview__device--bare"}`}
-      ref={(el) => {
-        if (el && (!stage || Math.abs(stage.w - el.clientWidth) > 40 || Math.abs(stage.h - el.clientHeight) > 40)) {
-          setStage({ w: el.clientWidth, h: el.clientHeight });
-        }
-      }}
+      ref={hostRef}
     >
       <div
         className="preview__device__viewport"

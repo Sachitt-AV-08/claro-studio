@@ -1,6 +1,6 @@
 # @project/ide — owned by Agent 2 (Puneeth)
 
-CLARO Studio: the IDE. Electron + Vite + React 18 + TypeScript + Monaco.
+CLARO Workbench: the IDE. Electron + Vite + React 18 + TypeScript + Monaco.
 
 Read `docs/CONTRACTS.md` first, then follow the Agent-2 prompt (issued separately).
 Do not modify `contracts/` or other packages — code against them.
