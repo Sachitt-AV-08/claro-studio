@@ -463,6 +463,16 @@ export const App: React.FC = () => {
         new CustomEvent("claro:bhasm-seed", { detail: { idea } }),
       );
     });
+    editor.onKeyDown((e) => {
+      if (e.keyCode !== monaco.KeyCode.Tab || e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
+      const pos = editor.getPosition();
+      if (!pos) return;
+      const line = editor.getModel()?.getLineContent(pos.lineNumber) ?? "";
+      const idea = ideaAtLine(line);
+      if (!idea) return;
+      e.preventDefault();
+      window.dispatchEvent(new CustomEvent("claro:bhasm-seed", { detail: { idea } }));
+    });
   };
 
   // consume claro:bhasm-seed → open panel + fill prompt (explain-comment mode)
