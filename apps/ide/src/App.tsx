@@ -217,6 +217,30 @@ export const App: React.FC = () => {
     setSource(value);
   };
 
+  // Squiggles in the editor mirror the same diagnostics the Problems panel
+  // renders (one store -> both surfaces; the panel stays the clickable index).
+  useEffect(() => {
+    const editor = editorRef.current;
+    const model = editor?.getModel();
+    if (!model) return;
+    const markers = [...errors, ...warnings].map((d) => {
+      const startColumn = Math.max(1, d.range?.start.col ?? 1);
+      const endColumnFromRange = d.range?.end.col ?? startColumn;
+      return {
+        severity:
+          d.severity === "error"
+            ? monaco.MarkerSeverity.Error
+            : monaco.MarkerSeverity.Warning,
+        message: d.message,
+        startLineNumber: d.range?.start.line ?? 1,
+        startColumn,
+        endLineNumber: d.range?.end.line ?? d.range?.start.line ?? 1,
+        endColumn: Math.max(startColumn + 1, endColumnFromRange),
+      };
+    });
+    monaco.editor.setModelMarkers(model, "claro-problems", markers);
+  }, [errors, warnings]);
+
   // Window controls via Electron API (graceful fallback in browser)
   const win = window.electronAPI;
   const minimize = () => win?.minimize();
