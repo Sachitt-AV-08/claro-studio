@@ -5,6 +5,8 @@ import { Icon, type IconName } from "../components/Icon";
 
 type DeviceId = "phone" | "tablet" | "desktop";
 
+type NotchStyle = "island" | "punch" | "none";
+
 interface DeviceSpec {
   id: DeviceId;
   label: string;
@@ -13,7 +15,15 @@ interface DeviceSpec {
   height: number;
   radius: number;
   borderSize: number;
-  notch: boolean;
+  notch: NotchStyle;
+  /** Dynamic-island / punch-hole width as a % of screen width (real iOS ≈ 31%). */
+  notchWidthPct: number;
+  /** Dynamic-island / punch-hole height as a % of screen height (real iOS island ≈ 4.3%). */
+  notchHeightPct: number;
+  /** Notch top offset as a % of screen height (sits under the status bar). */
+  notchTopPct: number;
+  /** Status bar + notch vertical band height (px at 1:1 device scale). */
+  statusBarHeight: number;
   homebar: boolean;
 }
 
@@ -22,11 +32,15 @@ const DEVICES: DeviceSpec[] = [
     id: "phone",
     label: "iPhone",
     icon: "device-mobile",
-    width: 375,
-    height: 788,
-    radius: 42,
-    borderSize: 11,
-    notch: true,
+    width: 390,
+    height: 844,
+    radius: 47,
+    borderSize: 9,
+    notch: "island",
+    statusBarHeight: 48, // iPhone 14 Pro status bar + island band ≈ 48px at 1:1 device scale
+    notchWidthPct: 31, // iPhone 14 Pro dynamic island ≈ 124px of 393px screen
+    notchHeightPct: 4.3, // real island height ≈ 36px of 844px screen
+    notchTopPct: 6.4, // island top ≈ 54px down (sits under the 54px status bar band)
     homebar: true,
   },
   {
@@ -35,9 +49,13 @@ const DEVICES: DeviceSpec[] = [
     icon: "device-mobile",
     width: 834,
     height: 1112,
-    radius: 26,
-    borderSize: 14,
-    notch: false,
+    radius: 32,
+    borderSize: 13,
+    notch: "none",
+    notchWidthPct: 0,
+    notchHeightPct: 0,
+    notchTopPct: 0,
+    statusBarHeight: 0,
     homebar: true,
   },
   {
@@ -46,17 +64,18 @@ const DEVICES: DeviceSpec[] = [
     icon: "device-desktop",
     width: 1080,
     height: 720,
-    radius: 10,
-    borderSize: 6,
-    notch: false,
+    radius: 12,
+    borderSize: 4,
+    notch: "none",
+    notchWidthPct: 0,
+    notchHeightPct: 0,
+    notchTopPct: 0,
+    statusBarHeight: 0,
     homebar: false,
   },
 ];
 
-const FRAME_OUTER_PAD = {
-  width: 96,
-  height: 168,
-};
+export const FRAME_OUTER_PAD = { width: 12, height: 40 };
 
 interface DevicePreviewProps {
   project: Project;
@@ -143,7 +162,28 @@ export const DevicePreview: React.FC<DevicePreviewProps> = ({
               borderWidth: spec.borderSize,
             }}
           >
-            {spec.notch && <div className="preview__device__notch" />}
+            {spec.notch === "island" && (
+              <div
+                className="preview__device__island"
+                style={{
+                  width: Math.round((spec.width * spec.notchWidthPct) / 100),
+                  height: Math.round((spec.height * spec.notchHeightPct) / 100),
+                  top: Math.round((spec.height * spec.notchTopPct) / 100),
+                }}
+              >
+                <span className="preview__device__island__lens" />
+              </div>
+            )}
+            {spec.notch === "punch" && (
+              <div
+                className="preview__device__punch"
+                style={{
+                  width: Math.round((spec.width * spec.notchWidthPct) / 100),
+                  height: Math.round((spec.width * spec.notchWidthPct) / 100),
+                  top: Math.round((spec.height * spec.notchTopPct) / 100),
+                }}
+              />
+            )}
             {isPhone && (
               <div className="preview__device__statusbar">
                 <span>9:41</span>
