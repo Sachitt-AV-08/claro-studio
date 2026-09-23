@@ -2304,6 +2304,112 @@ body {
   margin: 0;
 }
 
+/* ---------- terminal panel ---------- */
+
+.terminalpanel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: #0b0b11;
+  overflow: hidden;
+}
+
+.terminalpanel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-panel);
+}
+
+.terminalpanel__title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--color-fg-muted);
+}
+
+.terminalpanel__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-border);
+}
+
+.terminalpanel__dot--go {
+  background: var(--color-success);
+  box-shadow: 0 0 6px var(--color-success);
+}
+
+.terminalpanel__cwd {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.terminalpanel__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: #b9b9c6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.terminalpanel__ln--out { color: #b9b9c6; }
+.terminalpanel__ln--in { color: #c4a7ff; }
+.terminalpanel__ln--sys { color: #7b8ba3; }
+.terminalpanel__ln--err { color: #ef8b91; }
+
+.terminalpanel__in {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-panel);
+}
+
+.terminalpanel__prompt {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--color-accent);
+}
+
+.terminalpanel__in input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: #d2d2dc;
+}
+
+.terminalpanel__in input:disabled {
+  color: var(--color-fg-muted);
+}
+
+.terminalpanel__in input::placeholder {
+  color: var(--color-fg-muted);
+}
+
 /* ---------- titlebar palette chip ---------- */
 
 .titlebar__palette {
