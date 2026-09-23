@@ -117,6 +117,43 @@ export const ExtensionsView: React.FC = () => {
             </section>
           </div>
         </article>
+
+        <article className="ext-card">
+          <div className="ext-card__head">
+            <div className="ext-card__icon">
+              <Icon name="terminal" size={20} />
+            </div>
+            <div className="ext-card__title">
+              <span className="ext-card__name">CLARO Terminal</span>
+              <span className="ext-card__pub">CLARO · v0.1.0 · internal</span>
+              <span className="ext-card__desc">
+                ConPTY bridge over claro:term:* — spawn a shell or a built EXE by argv, and stream
+                its stdout live into the terminal feed. Offline, Windows-native, no node-pty.
+              </span>
+            </div>
+            <span className="ext-card__install ext-card__install--installed">Installed</span>
+          </div>
+
+          <div className="ext-card__sections">
+            <section className="ext-section">
+              <h4>IPC surface</h4>
+              <div className="ext-tools">
+                {[
+                  ["claroTermSpawn", "spawn cmd(w) with argv, ConPTY pipes"],
+                  ["claroTermWrite", "stdin into the running shell"],
+                  ["claroTermKill", "terminate the child (SIGKILL via TreeKill)"],
+                  ["claroTermOnData", "stdout rows streamed to the feed"],
+                  ["claroTermOnExit", "exit code + carry-on line"],
+                ].map(([id, desc]) => (
+                  <div key={id} className="ext-tool">
+                    <code className="ext-tool__id">{id}</code>
+                    <span className="ext-tool__desc">{desc}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+        </article>
       </div>
     </div>
   );
