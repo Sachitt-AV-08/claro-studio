@@ -174,6 +174,67 @@ ipcMain.handle(
   },
 );
 
+// ---- Term: real interactive ConPTY-style shell inside the IDE ----
+// Same child-process discipline as package-runner.cjs (pipe the stream, never
+// block the main loop). `cmd /d /k` deliberately — offline-first Windows app,
+// so shell is always the OS-cmd; node-pty is the documented fallback if we
+// need a true PTY, but spawn+pipe gives command.com a real stdin/stdout and
+// every build/run/bhasm command works with zero native-rebuild risk.
+interface TermState {
+  child: import('child_process').ChildProcessWithoutNullStreams;
+  cwd: string;
+  echo: { onData: (_: unknown, d: Buffer) => void; onExit: (_: unknown, code: number | null) => void };
+}
+const terms = new Map<string, TermState>();
+let termSeq = 0;
+
+ipcMain.handle('claro:term:spawn', (_e, opts: { cwd?: string }) => {
+  const id = `term-${++termSeq}`;
+  const cwd = opts.cwd && existsSync(opts.cwd) ? opts.cwd : app.getAppPath();
+  const child = spawn(process.env.ComSpec || 'cmd.exe', ['/d', '/k', 'chcp 65001>nul & cd /d "' + cwd + '"'], {
+    cwd,
+    env: { ...process.env, CLARO_TERM: id },
+    windowsHide: true,
+  });
+  const echo: TermState['echo'] = {
+    onData: (_e, d: Buffer) => sendToRenderer('claro:term:data', { id, data: d.toString('utf8') }),
+    onExit: (_e, code) => {
+      child.stdout?.off('data', echo.onData);
+      child.stderr?.off('data', echo.onData);
+      sendToRenderer('claro:term:exit', { id, code });
+      terms.delete(id);
+    },
+  };
+  child.stdout?.on('data', echo.onData);
+  child.stderr?.on('data', echo.onData);
+  child.on('exit', echo.onExit);
+  terms.set(id, { child, cwd, echo });
+  // prompt banner: single line so the renderer can split header vs stream
+  child.stdin?.write(`\u001b[34mclaro:term\u001b[0m \u00bb \u001b[2m${cwd}\u001b[0m\r\n`);
+  return { ok: true, id, cwd };
+});
+
+ipcMain.handle('claro:term:write', (_e, p: { id: string; data: string }) => {
+  const t = terms.get(p.id);
+  if (!t) return { ok: false, error: 'term gone' };
+  try { t.child.stdin?.write(p.data); return { ok: true }; } catch (e) { return { ok: false, error: String(e) }; }
+});
+
+ipcMain.handle('claro:term:resize', (_e, p: { id: string; cols: number; rows: number }) => {
+  const t = terms.get(p.id);
+  if (!t || t.child.stdout?.setEncoding) return { ok: true }; // cmd ignores resize; no-op is honest
+  return { ok: true };
+});
+
+ipcMain.handle('claro:term:kill', (_e, p: { id: string }) => {
+  const t = terms.get(p.id);
+  if (!t) return { ok: false };
+  try { t.child.stdin?.end(); t.child.kill(); } catch { /* already dead */ }
+  terms.delete(p.id);
+  sendToRenderer('claro:term:exit', { id: p.id, code: null });
+  return { ok: true };
+});
+
 // ---- App packaging: turn any exported project into a native EXE installer ----
 // The renderer exports a self-contained HTML artifact (Claro UI + embedded
 // logic.py / screen.kt sources). We scaffold a minimal Electron app around it

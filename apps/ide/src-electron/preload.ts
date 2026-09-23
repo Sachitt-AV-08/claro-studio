@@ -38,6 +38,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('claro:pkg:log', listener);
     return () => ipcRenderer.off('claro:pkg:log', listener);
   },
+  claroTermSpawn: (opts: { cwd?: string }) =>
+    ipcRenderer.invoke('claro:term:spawn', opts) as Promise<{ ok: boolean; id?: string; cwd?: string; error?: string }>,
+  claroTermWrite: (id: string, data: string) =>
+    ipcRenderer.invoke('claro:term:write', { id, data }) as Promise<{ ok: boolean; error?: string }>,
+  claroTermKill: (id: string) =>
+    ipcRenderer.invoke('claro:term:kill', { id }) as Promise<{ ok: boolean }>,
+  claroTermOnData: (cb: (p: { id: string; data: string }) => void) => {
+    const listener = (_: unknown, p: { id: string; data: string }) => cb(p);
+    ipcRenderer.on('claro:term:data', listener);
+    return () => ipcRenderer.off('claro:term:data', listener);
+  },
+  claroTermOnExit: (cb: (p: { id: string; code: number | null }) => void) => {
+    const listener = (_: unknown, p: { id: string; code: number | null }) => cb(p);
+    ipcRenderer.on('claro:term:exit', listener);
+    return () => ipcRenderer.off('claro:term:exit', listener);
+  },
   claroPkgOnDone: (cb: (p: { id: string; artifacts: string[]; canceled: boolean }) => void) => {
     const listener = (_: unknown, p: { id: string; artifacts: string[]; canceled: boolean }) => cb(p);
     ipcRenderer.on('claro:pkg:done', listener);

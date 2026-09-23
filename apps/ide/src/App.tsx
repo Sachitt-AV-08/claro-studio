@@ -795,8 +795,6 @@ export const App: React.FC = () => {
           />
         )}
       </main>
-
-      {/* BHASM panel */}
       {showAi && (
         <>
           <Splitter
