@@ -8,6 +8,7 @@ import { ExtensionsView } from "./extensions/ExtensionsView";
 import { StitchView } from "./stitch/StitchView";
 import { TasksView } from "./tasks/TasksView";
 import { BuildView } from "./build/BuildView";
+import { TerminalPanel, type TermLine } from "./components/TerminalPanel";
 import { CommandPalette, makeExportCommands, type PaletteCommand } from "./chrome/CommandPalette";
 import { ProblemsPanel } from "./chrome/ProblemsPanel";
 import { registerClaroLanguage, createClaroCompletionProvider, createIdeaHoverProvider, ideaAtLine, installWorkbenchLanguages } from "./dsl/claroLanguage";
@@ -144,6 +145,7 @@ export const App: React.FC = () => {
 
   const [aiHeight, setAiHeight] = useState(240);
   const sashRef = useRef<HTMLDivElement>(null);
+  const termFeed = useRef<((l: TermLine) => void) | null>(null);
 
   const {
     source,
@@ -784,7 +786,13 @@ export const App: React.FC = () => {
           <ExtensionsView />
         </section>
         <section className={`view-slot${activeView === "build" ? "" : " view-slot--hidden"}`}>
-          <BuildView project={project} pyCode={files.py} ktCode={files.kt} />
+          <BuildView
+            project={project}
+            pyCode={files.py}
+            ktCode={files.kt}
+            onBuildLog={(line) => termFeed.current?.({ text: line, kind: "out" })}
+          />
+          <TerminalPanel feedRef={termFeed} />
         </section>
         {showProblems && activeView === "explorer" && (
           <ProblemsPanel

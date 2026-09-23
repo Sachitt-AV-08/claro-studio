@@ -15,8 +15,19 @@ export interface TermLine {
   kind: TermKind;
 }
 
-export function TerminalPanel({ cwd }: { cwd?: string }) {
+export function TerminalPanel({
+  cwd,
+  feedRef,
+}: {
+  cwd?: string;
+  feedRef?: { current: ((l: TermLine) => void) | null };
+}) {
   const [lines, setLines] = useState<TermLine[]>([]);
+
+  useEffect(() => {
+    if (!feedRef) return;
+    feedRef.current = (l: TermLine) => setLines((prev) => [...prev, l]);
+  }, [feedRef]);
   const [input, setInput] = useState("");
   const [running, setRunning] = useState(false);
   const tailRef = useRef<HTMLDivElement | null>(null);
