@@ -40,7 +40,7 @@ const DEVICES: DeviceSpec[] = [
     statusBarHeight: 48, // iPhone 14 Pro status bar + island band ≈ 48px at 1:1 device scale
     notchWidthPct: 31, // iPhone 14 Pro dynamic island ≈ 124px of 393px screen
     notchHeightPct: 4.3, // real island height ≈ 36px of 844px screen
-    notchTopPct: 6.4, // island top ≈ 54px down (sits under the 54px status bar band)
+    notchTopPct: 3.2, // island top ≈ 27px (raised — closer to the physical 14 Pro look, under a slimmer status band)
     homebar: true,
   },
   {
@@ -92,9 +92,28 @@ export const DevicePreview: React.FC<DevicePreviewProps> = ({
 }) => {
   const [device, setDevice] = useState<DeviceId>("phone");
   const [stage, setStage] = useState<{ w: number; h: number } | null>(null);
+  const [sysStats, setSysStats] = useState<{ time: string; battery: number | null }>({
+    time: "",
+    battery: null,
+  });
   const hostRef = useRef<HTMLDivElement | null>(null);
   const spec = DEVICES.find((d) => d.id === device) ?? DEVICES[0];
   const isPhone = device === "phone";
+
+  useEffect(() => {
+    let alive = true;
+    const tick = () => {
+      window.electronAPI?.claroSysStats?.().then((s) => {
+        if (alive) setSysStats(s);
+      }).catch(() => {});
+    };
+    tick();
+    const t = setInterval(tick, 30000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, []);
 
   // Keep the fit-to-frame scale accurate through any window/panel resize.
   // ResizeObserver updates continuously (vs. one-shot ref callbacks that
@@ -186,8 +205,10 @@ export const DevicePreview: React.FC<DevicePreviewProps> = ({
             )}
             {isPhone && (
               <div className="preview__device__statusbar">
-                <span>9:41</span>
-                <span className="preview__device__statusbar__battery">100%</span>
+                <span>{sysStats.time || "…"}</span>
+                <span className="preview__device__statusbar__battery">
+                  {sysStats.battery !== null ? `${sysStats.battery}%` : "…"}
+                </span>
               </div>
             )}
             <div className="preview__device__screen">

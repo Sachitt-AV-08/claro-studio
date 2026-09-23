@@ -32,6 +32,7 @@ interface ClaroElectronApi {
   claroTermKill: (id: string) => Promise<{ ok: boolean }>;
   claroTermOnData: (cb: (p: { id: string; data: string }) => void) => () => void;
   claroTermOnExit: (cb: (p: { id: string; code: number | null; error?: string }) => void) => () => void;
+  claroSysStats: () => Promise<{ time: string; battery: number | null }>;
 }
 
 declare global {

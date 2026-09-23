@@ -54,6 +54,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('claro:term:exit', listener);
     return () => ipcRenderer.off('claro:term:exit', listener);
   },
+  claroSysStats: () =>
+    ipcRenderer.invoke('claro:sys:stats') as Promise<{ time: string; battery: number | null }>,
   claroPkgOnDone: (cb: (p: { id: string; artifacts: string[]; canceled: boolean }) => void) => {
     const listener = (_: unknown, p: { id: string; artifacts: string[]; canceled: boolean }) => cb(p);
     ipcRenderer.on('claro:pkg:done', listener);
@@ -94,6 +96,7 @@ declare global {
       claroPkgOnLog: (cb: (p: { id: string; line: string }) => void) => () => void;
       claroPkgOnDone: (cb: (p: { id: string; artifacts: string[]; canceled: boolean }) => void) => () => void;
       claroPkgOnError: (cb: (p: { id: string; error: string }) => void) => () => void;
+      claroSysStats: () => Promise<{ time: string; battery: number | null }>;
     };
   }
 }

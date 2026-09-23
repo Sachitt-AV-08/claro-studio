@@ -183,7 +183,7 @@ ipcMain.handle(
 interface TermState {
   child: import('child_process').ChildProcessWithoutNullStreams;
   cwd: string;
-  echo: { onData: (_: unknown, d: Buffer) => void; onExit: (_: unknown, code: number | null) => void };
+  echo: { onData: (chunk: Buffer) => void; onExit: (code: number | null) => void };
 }
 const terms = new Map<string, TermState>();
 let termSeq = 0;
@@ -202,8 +202,8 @@ ipcMain.handle('claro:term:spawn', (_e, opts: { cwd?: string; cmd?: string[] }) 
     terms.delete(id);
   });
   const echo: TermState['echo'] = {
-    onData: (_e, d: Buffer) => sendToRenderer('claro:term:data', { id, data: d.toString('utf8') }),
-    onExit: (_e, code) => {
+    onData: (chunk: Buffer) => sendToRenderer('claro:term:data', { id, data: chunk.toString('utf8') }),
+    onExit: (code) => {
       child.stdout?.off('data', echo.onData);
       child.stderr?.off('data', echo.onData);
       sendToRenderer('claro:term:exit', { id, code });
@@ -237,6 +237,24 @@ ipcMain.handle('claro:term:kill', (_e, p: { id: string }) => {
   terms.delete(p.id);
   sendToRenderer('claro:term:exit', { id: p.id, code: null });
   return { ok: true };
+});
+
+ipcMain.handle('claro:sys:stats', () => {
+  const now = new Date();
+  const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  let battery: number | null = null;
+  try {
+    const out = spawnSync('powershell.exe', ['-NoProfile', '-Command', '(Get-CimInstance Win32_Battery).EstimatedChargeRemaining'], {
+      timeout: 4000,
+      encoding: 'utf8',
+      windowsHide: true,
+    });
+    const n = Number((out.stdout ?? '').trim().split('\n').pop());
+    if (Number.isFinite(n)) battery = Math.round(n);
+  } catch {
+    battery = null;
+  }
+  return { time, battery };
 });
 
 // ---- App packaging: turn any exported project into a native EXE installer ----
