@@ -192,17 +192,15 @@ ipcMain.handle('claro:term:spawn', (_e, opts: { cwd?: string; cmd?: string[] }) 
   const id = `term-${++termSeq}`;
   const cwd = opts.cwd && existsSync(opts.cwd) ? opts.cwd : app.getAppPath();
   const argv = opts.cmd && opts.cmd.length ? opts.cmd : ['/d', '/k', 'chcp 65001>nul & cd /d "' + cwd + '"'];
-  let child: ReturnType<typeof spawn>;
-  try {
-    child = spawn(opts.cmd && opts.cmd.length ? opts.cmd[0] : process.env.ComSpec || 'cmd.exe', argv, {
-      cwd,
-      env: { ...process.env, CLARO_TERM: id },
-      windowsHide: true,
-    });
-  } catch (e) {
+  const child = spawn(opts.cmd && opts.cmd.length ? opts.cmd[0] : process.env.ComSpec || 'cmd.exe', argv, {
+    cwd,
+    env: { ...process.env, CLARO_TERM: id },
+    windowsHide: true,
+  });
+  child.on('error', (e) => {
     sendToRenderer('claro:term:exit', { id, code: -1, error: e instanceof Error ? e.message : String(e) });
-    return { ok: false, error: e instanceof Error ? e.message : String(e) };
-  }
+    terms.delete(id);
+  });
   const echo: TermState['echo'] = {
     onData: (_e, d: Buffer) => sendToRenderer('claro:term:data', { id, data: d.toString('utf8') }),
     onExit: (_e, code) => {
@@ -228,9 +226,8 @@ ipcMain.handle('claro:term:write', (_e, p: { id: string; data: string }) => {
 });
 
 ipcMain.handle('claro:term:resize', (_e, p: { id: string; cols: number; rows: number }) => {
-  const t = terms.get(p.id);
-  if (!t || t.child.stdout?.setEncoding) return { ok: true }; // cmd ignores resize; no-op is honest
-  return { ok: true };
+  // cmd ignores resize; no-op is honest
+  return terms.has(p.id) ? { ok: true } : { ok: false };
 });
 
 ipcMain.handle('claro:term:kill', (_e, p: { id: string }) => {
