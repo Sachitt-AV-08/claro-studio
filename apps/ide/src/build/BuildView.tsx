@@ -10,6 +10,7 @@ interface BuildViewProps {
   pyCode: string;
   ktCode: string;
   onBuildLog?: (line: string) => void;
+  onRun?: (cmd: string) => void;
 }
 
 const STATUS_LABEL: Record<BuildStatus, string> = {

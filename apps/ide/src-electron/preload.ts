@@ -38,7 +38,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('claro:pkg:log', listener);
     return () => ipcRenderer.off('claro:pkg:log', listener);
   },
-  claroTermSpawn: (opts: { cwd?: string }) =>
+  claroTermSpawn: (opts: { cwd?: string; cmd?: string[] }) =>
     ipcRenderer.invoke('claro:term:spawn', opts) as Promise<{ ok: boolean; id?: string; cwd?: string; error?: string }>,
   claroTermWrite: (id: string, data: string) =>
     ipcRenderer.invoke('claro:term:write', { id, data }) as Promise<{ ok: boolean; error?: string }>,
