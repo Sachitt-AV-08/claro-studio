@@ -69,6 +69,7 @@ export function BuildView({ project, pyCode, ktCode, onBuildLog }: BuildViewProp
       setStatus(p.canceled ? "cancelled" : "done");
       if (p.canceled) addLog("Build cancelled.");
       setArtifacts(p.artifacts);
+      if (p.artifacts[0]) onBuildLog?.(`claro:exec › built ${p.artifacts[0]} — Run fetches it via claro:term:spawn(cmd)`);
     });
     const offError = api.claroPkgOnError((p) => {
       if (p.id !== buildId.current) return;

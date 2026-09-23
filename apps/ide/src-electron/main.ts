@@ -188,10 +188,11 @@ interface TermState {
 const terms = new Map<string, TermState>();
 let termSeq = 0;
 
-ipcMain.handle('claro:term:spawn', (_e, opts: { cwd?: string }) => {
+ipcMain.handle('claro:term:spawn', (_e, opts: { cwd?: string; cmd?: string[] }) => {
   const id = `term-${++termSeq}`;
   const cwd = opts.cwd && existsSync(opts.cwd) ? opts.cwd : app.getAppPath();
-  const child = spawn(process.env.ComSpec || 'cmd.exe', ['/d', '/k', 'chcp 65001>nul & cd /d "' + cwd + '"'], {
+  const argv = opts.cmd && opts.cmd.length ? opts.cmd : ['/d', '/k', 'chcp 65001>nul & cd /d "' + cwd + '"'];
+  const child = spawn(opts.cmd && opts.cmd.length ? opts.cmd[0] : process.env.ComSpec || 'cmd.exe', argv, {
     cwd,
     env: { ...process.env, CLARO_TERM: id },
     windowsHide: true,
