@@ -192,11 +192,17 @@ ipcMain.handle('claro:term:spawn', (_e, opts: { cwd?: string; cmd?: string[] }) 
   const id = `term-${++termSeq}`;
   const cwd = opts.cwd && existsSync(opts.cwd) ? opts.cwd : app.getAppPath();
   const argv = opts.cmd && opts.cmd.length ? opts.cmd : ['/d', '/k', 'chcp 65001>nul & cd /d "' + cwd + '"'];
-  const child = spawn(opts.cmd && opts.cmd.length ? opts.cmd[0] : process.env.ComSpec || 'cmd.exe', argv, {
-    cwd,
-    env: { ...process.env, CLARO_TERM: id },
-    windowsHide: true,
-  });
+  let child: ReturnType<typeof spawn>;
+  try {
+    child = spawn(opts.cmd && opts.cmd.length ? opts.cmd[0] : process.env.ComSpec || 'cmd.exe', argv, {
+      cwd,
+      env: { ...process.env, CLARO_TERM: id },
+      windowsHide: true,
+    });
+  } catch (e) {
+    sendToRenderer('claro:term:exit', { id, code: -1, error: e instanceof Error ? e.message : String(e) });
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
   const echo: TermState['echo'] = {
     onData: (_e, d: Buffer) => sendToRenderer('claro:term:data', { id, data: d.toString('utf8') }),
     onExit: (_e, code) => {

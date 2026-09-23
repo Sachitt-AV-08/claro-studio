@@ -62,7 +62,12 @@ export function TerminalPanel({
     const offExit = window.electronAPI?.claroTermOnExit?.((p) => {
       if (p.id !== idRef.current) return;
       setRunning(false);
-      setLines((l) => [...l, { text: `claro:term › exited (${p.code ?? "?"})`, kind: "sys" }]);
+      setLines((l) => [
+        ...l,
+        p.error
+          ? { text: `claro:term › ${p.error}`, kind: "err" as TermKind }
+          : { text: `claro:term › exited (${p.code ?? "?"})`, kind: "sys" as TermKind },
+      ]);
     });
 
     return () => {

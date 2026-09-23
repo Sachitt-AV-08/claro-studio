@@ -49,8 +49,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('claro:term:data', listener);
     return () => ipcRenderer.off('claro:term:data', listener);
   },
-  claroTermOnExit: (cb: (p: { id: string; code: number | null }) => void) => {
-    const listener = (_: unknown, p: { id: string; code: number | null }) => cb(p);
+  claroTermOnExit: (cb: (p: { id: string; code: number | null; error?: string }) => void) => {
+    const listener = (_: unknown, p: { id: string; code: number | null; error?: string }) => cb(p);
     ipcRenderer.on('claro:term:exit', listener);
     return () => ipcRenderer.off('claro:term:exit', listener);
   },
