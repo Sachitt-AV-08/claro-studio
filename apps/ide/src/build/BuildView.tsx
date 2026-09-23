@@ -21,7 +21,7 @@ const STATUS_LABEL: Record<BuildStatus, string> = {
   cancelled: "Cancelled",
 };
 
-export function BuildView({ project, pyCode, ktCode, onBuildLog }: BuildViewProps) {
+export function BuildView({ project, pyCode, ktCode, onBuildLog, onRun }: BuildViewProps) {
   const suggestedName = useMemo(() => {
     const page = project.pages[0]?.name;
     return page ? `${page} App` : "My App";
@@ -206,6 +206,11 @@ export function BuildView({ project, pyCode, ktCode, onBuildLog }: BuildViewProp
         {status === "building" && (
           <button className="build__cancel" onClick={cancel}>
             <Icon name="close" size={14} /> Cancel
+          </button>
+        )}
+        {artifacts.length > 0 && (
+          <button className="build__go" onClick={() => onRun?.(artifacts[0])} title="Run the first built artifact in the live terminal">
+            <Icon name="play" size={14} /> Run
           </button>
         )}
       </section>

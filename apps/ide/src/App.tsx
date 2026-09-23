@@ -791,6 +791,7 @@ export const App: React.FC = () => {
             pyCode={files.py}
             ktCode={files.kt}
             onBuildLog={(line) => termFeed.current?.({ text: line, kind: "out" })}
+            onRun={(cmd) => void window.electronAPI?.claroTermSpawn?.({ cmd: [cmd] })}
           />
           <TerminalPanel feedRef={termFeed} />
         </section>
