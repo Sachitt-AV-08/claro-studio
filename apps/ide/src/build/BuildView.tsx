@@ -9,6 +9,7 @@ interface BuildViewProps {
   project: Project;
   pyCode: string;
   ktCode: string;
+  onBuildLog?: (line: string) => void;
 }
 
 const STATUS_LABEL: Record<BuildStatus, string> = {
@@ -19,7 +20,7 @@ const STATUS_LABEL: Record<BuildStatus, string> = {
   cancelled: "Cancelled",
 };
 
-export function BuildView({ project, pyCode, ktCode }: BuildViewProps) {
+export function BuildView({ project, pyCode, ktCode, onBuildLog }: BuildViewProps) {
   const suggestedName = useMemo(() => {
     const page = project.pages[0]?.name;
     return page ? `${page} App` : "My App";
@@ -39,7 +40,8 @@ export function BuildView({ project, pyCode, ktCode }: BuildViewProps) {
 
   const addLog = useCallback((line: string) => {
     setLog((prev) => (prev.length > 300 ? [...prev.slice(-250), line] : [...prev, line]));
-  }, []);
+    onBuildLog?.(line);
+  }, [onBuildLog]);
 
   useEffect(() => {
     void (async () => {
