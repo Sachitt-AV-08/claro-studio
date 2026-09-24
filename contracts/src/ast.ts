@@ -24,6 +24,14 @@ export interface ComponentParam {
   type: string;
 }
 
+/** A line comment captured as trivia so format() never drops it. */
+export interface CommentNode {
+  /** Comment text WITH the leading `# ` or `// ` marker stripped by the parser. */
+  text: string;
+  /** 1-based source line (used to re-interleave comments in format()). */
+  line: number;
+}
+
 export interface DslNode {
   kind: "page" | "component" | "element";
   /** Stable identity, dotted path of (name ?? type), disambiguated with :n. See contracts/src/ids.ts */
@@ -31,6 +39,10 @@ export interface DslNode {
   type: string;
   name?: string;
   props: Record<string, PropValue>;
+  /** comments attached to this node (before its header or inside its body) */
+  comments?: CommentNode[];
+  /** comments trailing the body, emitted just before the closing `}` */
+  tailComments?: CommentNode[];
   /** components only */
   params?: ComponentParam[];
   /** text content for textContent elements: `heading "Hello"` -> "Hello" */
@@ -55,5 +67,7 @@ export interface Project {
   meta: { version: "1.0"; fileType: ".cl" };
   pages: DslNode[];
   components: DslNode[];
+  /** file-level comments not attached to any node, in source order */
+  comments?: CommentNode[];
   diagnostics: Diagnostic[];
 }

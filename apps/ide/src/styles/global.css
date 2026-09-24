@@ -2872,6 +2872,17 @@ filter: drop-shadow(0 0 4px rgba(200, 200, 230, 0.4));
   box-shadow: 0 0 6px var(--color-error);
 }
 
+/* ---------- idea comments (gutter badge) ---------- */
+
+.claro-idea-badge {
+  width: 9px;
+  height: 9px;
+  margin-left: 5px;
+  border-radius: 50%;
+  background: var(--color-idea, #8a7bff);
+  box-shadow: 0 0 6px rgba(138, 123, 255, 0.6);
+}
+
 /* ---------- settings view ---------- */
 
 .settings {

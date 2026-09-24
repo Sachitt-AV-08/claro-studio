@@ -26,8 +26,8 @@ const DEFAULT_TASKS: TaskItem[] = [
   { id: "m4b", milestone: "M4", agent: "A2", title: "Todos (chat + team board)", status: "in_progress" },
   { id: "m4c", milestone: "M4", agent: "A2", title: "Comment → Bhasm + palette + Problems + Export", status: "todo" },
   { id: "m5", milestone: "M5", agent: "A2", title: "Delivery: final rebuild, commit, push", status: "todo" },
-  { id: "a1", milestone: "A1", agent: "A1", title: "Comment preservation + getLanguageKnowledge", status: "todo" },
-  { id: "a4", milestone: "A4", agent: "A4", title: "Android Compose codegen + parity tests", status: "todo" },
+  { id: "a1", milestone: "A1", agent: "A1", title: "Comment preservation + getLanguageKnowledge", status: "done" },
+  { id: "a4", milestone: "A4", agent: "A4", title: "Android Compose codegen + parity tests", status: "done" },
 ];
 
 const STORAGE_KEY = "claro.team-tasks.v1";

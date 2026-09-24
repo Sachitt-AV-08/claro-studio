@@ -238,3 +238,111 @@ export function allTypeNames(): string[] {
   for (const t of Object.values(SYNONYMS)) set.add(t);
   return [...set];
 }
+
+export interface LanguageKnowledge {
+  name: string;
+  extension: string;
+  blurb: string;
+  valueTypes: Array<{
+    type: string;
+    writtenAs: string;
+    usedFor: string;
+    note: string;
+  }>;
+  units: string[];
+  synonyms: Record<string, string>;
+  layouts: string[];
+  enums: Record<string, string[]>;
+  effects: string[];
+  animations: string[];
+  elements: Array<{
+    type: string;
+    doc: string;
+    textContent: boolean;
+    isComponent: boolean;
+    props: Array<{
+      name: string;
+      kind: PropKind;
+      group: PropGroup;
+      units?: PropSchema["unit"];
+      values?: string[];
+      required?: boolean;
+      doc?: string;
+    }>;
+  }>;
+  patchOps: Array<{ op: string; shape: string; doc: string }>;
+}
+
+const PATCH_OP_DOC: Record<string, { shape: string; doc: string }> = {
+  set_property: { shape: '{ op, target, property, value }', doc: "set or override a property on a node" },
+  clear_property: { shape: '{ op, target, property }', doc: "remove a property (falls back to schema default)" },
+  set_text: { shape: '{ op, target, value }', doc: "change element text content (heading/text/button/badge)" },
+  add_element: { shape: '{ op, parent, element, position, ref? }', doc: "insert a child element" },
+  remove_element: { shape: '{ op, target }', doc: "remove a node and its subtree" },
+  move_element: { shape: '{ op, target, position, ref? }', doc: "reorder a node within its parent" },
+  set_layout: { shape: '{ op, target, layout }', doc: "switch layout stack/row/grid/overlay" },
+  set_effects: { shape: '{ op, target, effect }', doc: "apply a decorative effect" },
+};
+
+/**
+ * Single source of truth for the Claro language. Drives the Monaco editor,
+ * BHASM skill generation, Agent 3 prompts, and Agent 4 codegen — derived
+ * directly from ELEMENTS/SYNONYMS/patches.ts so nothing drifts.
+ */
+export function getLanguageKnowledge(): LanguageKnowledge {
+  const elements = Object.keys(ELEMENTS)
+    .sort()
+    .map((type) => {
+      const sch = ELEMENTS[type];
+      return {
+        type,
+        doc: sch.doc,
+        textContent: !!sch.textContent,
+        isComponent: !!sch.isComponent,
+        props: Object.entries(sch.props).map(([name, ps]) => ({
+          name,
+          kind: ps.kind,
+          group: ps.group,
+          units: ps.unit,
+          values: ps.values,
+          required: ps.required,
+          doc: ps.doc,
+        })),
+      };
+    });
+  return {
+    name: "Claro",
+    extension: ".cl",
+    blurb:
+      "Claro is a tiny, typed, reversibly-editable UI language. Source and interface are the same program. " +
+      "Every node carries a stable nodeId. Unknown input degrades to diagnostics, never errors. " +
+      "No logic, no events, no data binding in v1 — components are pure.",
+    valueTypes: [
+      { type: "number", writtenAs: "24 | 50% | 2fr | 1.5em", usedFor: "sizes and spacing", note: "no arithmetic" },
+      { type: "string", writtenAs: "\"text\"", usedFor: "content, labels, src", note: "escapes \\\" \\\\ \\n \\t" },
+      { type: "color", writtenAs: "#aabbcc | #abc | rgb() | rgba() | named", usedFor: "all color props", note: "no HSL" },
+      { type: "boolean", writtenAs: "true | false", usedFor: "toggles", note: "reserved words" },
+      { type: "enum", writtenAs: "bare word", usedFor: "layout/align/effects/weight", note: "schema-checked values only" },
+      { type: "ref", writtenAs: "@paramName", usedFor: "component params", note: "component bodies only" },
+      { type: "list", writtenAs: "[1fr 2fr 1fr]", usedFor: "grid templates", note: "flattened values" },
+    ],
+    units: ["px", "%", "fr", "em", "rem"],
+    synonyms: { ...SYNONYMS },
+    layouts: [...LAYOUTS],
+    enums: {
+      align: [...ALIGN_VALUES],
+      justify: [...JUSTIFY_VALUES],
+      "text.align": [...TEXT_ALIGN_VALUES],
+      weight: [...FONT_WEIGHT_VALUES],
+      effect: [...EFFECTS],
+      animation: [...ANIMATIONS],
+      "button.variant": ["primary", "ghost", "outline"],
+      "badge.variant": ["neutral", "accent", "success", "warn", "danger"],
+      "input.type": ["text", "password", "email", "number"],
+    },
+    effects: [...EFFECTS],
+    animations: [...ANIMATIONS],
+    elements,
+    patchOps: Object.entries(PATCH_OP_DOC).map(([op, v]) => ({ op, shape: v.shape, doc: v.doc })),
+  };
+}

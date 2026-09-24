@@ -169,6 +169,16 @@ export function ideaAtLine(line: string): string | null {
   return m ? m[1].trim() : null;
 }
 
+/** 1-based line numbers that hold "#" idea comments. */
+export function ideaLines(source: string): number[] {
+  const lines: number[] = [];
+  const all = source.split(/\r?\n/);
+  for (let i = 0; i < all.length; i++) {
+    if (/^\s*#[ \t]/.test(all[i])) lines.push(i + 1);
+  }
+  return lines;
+}
+
 /**
  * Call once at app start. Guarantees indentation-friendly editing for the
  * bundled Python + Kotlin languages (Monaco ships their tokenizers in the

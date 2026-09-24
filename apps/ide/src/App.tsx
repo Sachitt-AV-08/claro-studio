@@ -13,7 +13,7 @@ import { BuildView } from "./build/BuildView";
 import { TerminalPanel, type TermLine } from "./components/TerminalPanel";
 import { CommandPalette, makeExportCommands, type PaletteCommand } from "./chrome/CommandPalette";
 import { ProblemsPanel } from "./chrome/ProblemsPanel";
-import { registerClaroLanguage, createClaroCompletionProvider, createIdeaHoverProvider, ideaAtLine, installWorkbenchLanguages } from "./dsl/claroLanguage";
+import { registerClaroLanguage, createClaroCompletionProvider, createIdeaHoverProvider, ideaAtLine, ideaLines, installWorkbenchLanguages } from "./dsl/claroLanguage";
 import { format, parse } from "@project/dsl";
 import { Icon, type IconName } from "./components/Icon";
 import { Splitter } from "./components/Splitter";
@@ -303,6 +303,29 @@ export const App: React.FC = () => {
     }));
     debugDecosRef.current.set(decorations);
   }, [breakpoints]);
+
+  // "#" idea comments → violet gutter badge (double-click/Tab seeds BHASM)
+  const ideaDecosRef = useRef<monaco.editor.IEditorDecorationsCollection | null>(null);
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    if (!ideaDecosRef.current) ideaDecosRef.current = editor.createDecorationsCollection();
+    const decorations = ideaLines(debouncedSource).map((line) => {
+      const text = editor.getModel()?.getLineContent(line) ?? "";
+      const idea = ideaAtLine(text) ?? "";
+      return {
+        range: new monaco.Range(line, 1, line, 1),
+        options: {
+          isWholeLine: false,
+          glyphMarginClassName: "claro-idea-badge",
+          glyphMarginHoverMessage: {
+            value: `**Idea** — ${idea}\n\ndouble-click or press **Tab** to ask BHASM.`,
+          },
+        },
+      };
+    });
+    ideaDecosRef.current.set(decorations);
+  }, [debouncedSource]);
 
   // Window controls via Electron API (graceful fallback in browser)
   const win = window.electronAPI;

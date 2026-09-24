@@ -1,16 +1,10 @@
 import {
-  ELEMENTS,
-  SYNONYMS,
-  ALIGN_VALUES,
-  JUSTIFY_VALUES,
-  TEXT_ALIGN_VALUES,
-  FONT_WEIGHT_VALUES,
-  EFFECTS,
-  ANIMATIONS,
-  type PropSchema,
+  getLanguageKnowledge,
+  type LanguageKnowledge,
+  type PropKind,
 } from "@project/contracts";
 
-const PROP_KINDS: Record<string, string> = {
+const PROP_KINDS: Record<PropKind, string> = {
   number: "number (with optional unit)",
   string: "string",
   color: "hex color",
@@ -20,29 +14,27 @@ const PROP_KINDS: Record<string, string> = {
   list: "[ ... ] bracketed list",
 };
 
-function formatProp(p: PropSchema): string {
-  const parts: string[] = [];
-  parts.push(`kind=${p.kind}`);
-  if (p.unit && p.unit.length) parts.push(`units=${p.unit.join("|")}`);
-  if (p.values) parts.push(`allowed=[${p.values.join("|")}]`);
-  parts.push(`group=${p.group}`);
-  if (p.required) parts.push("required");
-  const doc = p.doc ? ` — ${p.doc}` : "";
-  return `${parts.join(", ")}${doc}`;
+function formatKind(kind: PropKind, units?: string[], values?: string[]): string {
+  const parts: string[] = [`kind=${kind}`];
+  if (units && units.length) parts.push(`units=${units.join("|")}`);
+  if (values) parts.push(`allowed=[${values.join("|")}]`);
+  return parts.join(", ");
 }
 
-function renderElements(): string {
+function renderElements(k: LanguageKnowledge): string {
   const lines: string[] = [];
-  for (const [name, el] of Object.entries(ELEMENTS)) {
-    lines.push(`### ${name}`);
+  for (const el of k.elements) {
+    lines.push(`### ${el.type}`);
     if (el.doc) lines.push(el.doc);
-    if (el.textContent) lines.push(`- Renders text content: \`${name} "My title"\``);
+    if (el.textContent) lines.push(`- Renders text content: \`${el.type} "My title"\``);
     if (el.isComponent) lines.push("- Component instance (defined in `.cl` component files)");
-    const props = Object.entries(el.props);
-    if (props.length) {
+    if (el.props.length) {
       lines.push("Props:");
-      for (const [propName, prop] of props) {
-        lines.push(`  - \`${propName}\` — ${formatProp(prop)}`);
+      for (const p of el.props) {
+        const detail = formatKind(p.kind, p.units, p.values);
+        const doc = p.doc ? ` — ${p.doc}` : "";
+        const required = p.required ? " (required)" : "";
+        lines.push(`  - \`${p.name}\` — ${detail}${required}${doc}`);
       }
     }
     lines.push("");
@@ -50,20 +42,32 @@ function renderElements(): string {
   return lines.join("\n");
 }
 
-function renderSynonyms(): string {
-  return Object.entries(SYNONYMS)
+function renderSynonyms(k: LanguageKnowledge): string {
+  return Object.entries(k.synonyms)
     .map(([from, to]) => `- \`${from}\` → \`${to}\``)
     .join("\n");
 }
 
-const PATCH_VOCABULARY = `- {"op":"set_property","target":"<nodeId>","property":"<prop>","value":<PropValue>}
-- {"op":"clear_property","target":"<nodeId>","property":"<prop>"}
-- {"op":"set_text","target":"<nodeId>","value":"<string>"}
-- {"op":"add_element","parent":"<nodeId>","element":<DslNode>,"position":"last"}
-- {"op":"remove_element","target":"<nodeId>"}
-- {"op":"move_element","target":"<nodeId>","position":"first|last","ref":"<nodeId>"}
-- {"op":"set_layout","target":"<nodeId>","layout":"stack|row|grid|overlay"}
-- {"op":"set_effects","target":"<nodeId>","effect":"aurora|particles|glow|noise"}`;
+function renderEnums(k: LanguageKnowledge): string {
+  const named = [
+    ["align", "align"],
+    ["justify", "justify"],
+    ["text.align", "text align"],
+    ["weight", "font weight"],
+    ["effect", "effects"],
+    ["animation", "animations"],
+    ["button.variant", "button variant"],
+    ["badge.variant", "badge variant"],
+    ["input.type", "input type"],
+  ] as const;
+  return named
+    .map(([key, label]) => `- ${label}: ${(k.enums[key] ?? []).join(" | ")}`)
+    .join("\n");
+}
+
+function renderPatchVocabulary(k: LanguageKnowledge): string {
+  return k.patchOps.map((op) => `- ${op.shape} — ${op.doc}`).join("\n");
+}
 
 const EXAMPLES = `\`\`\`
 page Home {
@@ -84,38 +88,41 @@ PropValue forms: {"t":"num","v":18} · {"t":"str","v":"hi"} · {"t":"color","v":
 Tuples: padding: 8 16 → top-bottom left-right. border: 1 solid #fff. shadow: 0 2 8 rgba(0,0,0,.2)`;
 
 /**
- * The claro-language skill — generated IN-MEMORY from contracts/dsl-schema.ts,
- * the single source of truth. It can never drift from the real grammar because
- * it IS the real grammar. Auto-attached to every BHASM code/ask call.
+ * The claro-language skill — generated IN-MEMORY from getLanguageKnowledge()
+ * (contracts/dsl-schema.ts), the single source of truth. It can never drift
+ * from the real grammar because it IS the real grammar. Auto-attached to every
+ * BHASM code/ask call.
  */
 export function buildClaroLanguageSkill(): string {
+  const k = getLanguageKnowledge();
   return `# Claro language reference
 
-Claro (.cl) is a reversible, AI-native markup language. Comments use \`#\` to the end of line
-and are the project's "ideas" — treat them as authoritative product intent.
+${k.blurb}
+
+Claro (.cl) comments use \`#\` to the end of line and are the project's "ideas" —
+treat them as authoritative product intent.
+
+## Value types
+
+${k.valueTypes.map((v) => `- ${v.type} — written as \`${v.writtenAs}\`; ${v.usedFor} (${v.note})`).join("\n")}
 
 ## Elements
 
-${renderElements()}
+${renderElements(k)}
 
 ## Synonyms (aliases resolved at parse time)
 
-${renderSynonyms()}
+${renderSynonyms(k)}
 
 ## Global enumerations
 
-- align: ${ALIGN_VALUES.join(" | ")}
-- justify: ${JUSTIFY_VALUES.join(" | ")}
-- text align: ${TEXT_ALIGN_VALUES.join(" | ")}
-- font weight: ${FONT_WEIGHT_VALUES.join(" | ")}
-- effects: ${EFFECTS.join(" | ")}
-- animations: ${ANIMATIONS.join(" | ")}
+${renderEnums(k)}
 
 ## PropValue kinds
-${Object.entries(PROP_KINDS).map(([k, v]) => `- ${k}: ${v}`).join("\n")}
+${Object.entries(PROP_KINDS).map(([kind, v]) => `- ${kind}: ${v}`).join("\n")}
 
 ## PatchOp vocabulary (the ONLY way to modify a project)
-${PATCH_VOCABULARY}
+${renderPatchVocabulary(k)}
 
 All PatchOps are validated by the engine before they apply; a nodeId must exist and every
 property must be legal for the target element's schema. Prefer set_property/set_text for
