@@ -33,6 +33,38 @@ contextBridge.exposeInMainWorld('electronAPI', {
       text: string;
       error?: string;
     }>,
+  claroMcpStart: (opts: { graphJson: string; python?: string }) =>
+    ipcRenderer.invoke('claro:mcp:start', opts) as Promise<{
+      ok: boolean;
+      running: boolean;
+      tools?: string[];
+      error?: string;
+    }>,
+  claroMcpStatus: () =>
+    ipcRenderer.invoke('claro:mcp:status') as Promise<{
+      ok: boolean;
+      running: boolean;
+      python?: string;
+      graphJson?: string;
+      tools?: string[];
+      error?: string;
+    }>,
+  claroMcpRequest: (method: string, params?: Record<string, unknown>) =>
+    ipcRenderer.invoke('claro:mcp:request', { method, params }) as Promise<{
+      ok: boolean;
+      result?: unknown;
+      error?: string;
+    }>,
+  claroMcpCall: (name: string, args?: Record<string, unknown>) =>
+    ipcRenderer.invoke('claro:mcp:call', { name, arguments: args }) as Promise<{
+      ok: boolean;
+      text?: string;
+      error?: string;
+    }>,
+  claroMcpStop: () =>
+    ipcRenderer.invoke('claro:mcp:stop') as Promise<{ ok: boolean }>,
+  claroMcpDiscover: (dir: string) =>
+    ipcRenderer.invoke('claro:mcp:discover', dir) as Promise<string | null>,
   claroPkgHost: () =>
     ipcRenderer.invoke('claro:pkg:host') as Promise<{
       defaultOutDir: string;
@@ -117,6 +149,32 @@ declare global {
         method: string,
         body?: unknown,
       ) => Promise<{ status: number; ok: boolean; text: string; error?: string }>;
+      claroMcpStart: (opts: { graphJson: string; python?: string }) => Promise<{
+        ok: boolean;
+        running: boolean;
+        tools?: string[];
+        error?: string;
+      }>;
+      claroMcpStatus: () => Promise<{
+        ok: boolean;
+        running: boolean;
+        python?: string;
+        graphJson?: string;
+        tools?: string[];
+        error?: string;
+      }>;
+      claroMcpRequest: (method: string, params?: Record<string, unknown>) => Promise<{
+        ok: boolean;
+        result?: unknown;
+        error?: string;
+      }>;
+      claroMcpCall: (name: string, args?: Record<string, unknown>) => Promise<{
+        ok: boolean;
+        text?: string;
+        error?: string;
+      }>;
+      claroMcpStop: () => Promise<{ ok: boolean }>;
+      claroMcpDiscover: (dir: string) => Promise<string | null>;
       claroPkgHost: () => Promise<{
         defaultOutDir: string;
         electronVersion: string;

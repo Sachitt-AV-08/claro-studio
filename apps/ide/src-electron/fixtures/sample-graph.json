@@ -1,0 +1,79 @@
+{
+  "directed": true,
+  "multigraph": true,
+  "graph": {},
+  "built_at_commit": "0000000",
+  "nodes": [
+    {
+      "label": "chip_demo.cl",
+      "file_type": "code",
+      "source_file": "chip_demo.cl",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "chip_demo",
+      "community": 0,
+      "norm_label": "chip_demo.cl"
+    },
+    {
+      "label": "Demo",
+      "file_type": "code",
+      "source_file": "chip_demo.cl",
+      "source_location": "L2",
+      "_origin": "ast",
+      "id": "fixtures_demo",
+      "community": 1,
+      "norm_label": "Demo"
+    },
+    {
+      "label": "Chip",
+      "file_type": "code",
+      "source_file": "helpers.cl",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "component_chip",
+      "community": 1,
+      "norm_label": "Chip"
+    },
+    {
+      "label": "chip_demo_page_demo_section_status",
+      "file_type": "code",
+      "source_file": "chip_demo.cl",
+      "source_location": "L2",
+      "id": "chip_demo_fixtures_demo_section_status",
+      "community": 1
+    }
+  ],
+  "links": [
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "chip_demo.cl",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "chip_demo",
+      "target": "fixtures_demo",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "chip_demo.cl",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "fixtures_demo",
+      "target": "chip_demo_fixtures_demo_section_status",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "chip_demo.cl",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "chip_demo_fixtures_demo_section_status",
+      "target": "component_chip",
+      "confidence_score": 1.0
+    }
+  ],
+  "hyperedges": []
+}

@@ -19,6 +19,8 @@ import { Icon, type IconName } from "./components/Icon";
 import { Splitter } from "./components/Splitter";
 import { KotlinPreview } from "./preview/KotlinPreview";
 import { PythonConsole } from "./preview/PythonConsole";
+import { useMcpStore } from "./graph/mcpStore";
+import { discoverGraphJson, loadBhasmGraphSettings, type BhasmGraphSettings } from "./graph/graphSettings";
 
 // Use the bundled Monaco instance (vite-plugin-monaco-editor) instead of the
 // CDN-loaded one that @monaco-editor/react pulls in by default. Without this,
@@ -393,6 +395,53 @@ export const App: React.FC = () => {
     return () => clearInterval(id);
   }, [win]);
 
+  // ---- Graphify MCP sidecar lifecycle (Phase 3) ----
+  // Loads bhasm.json settings once (and on every change), refreshes sidecar
+  // status on a 5s poll, and auto-starts the graph server when a graph.json is
+  // configured or discovered next to an opened Claro file.
+  const [graphCfg, setGraphCfg] = useState<BhasmGraphSettings | null>(null);
+  const mcpRunning = useMcpStore((s) => s.status?.running ?? false);
+  const mcpTools = useMcpStore((s) => s.status?.tools?.length ?? 0);
+  const mcpError = useMcpStore((s) => s.status?.error);
+
+  useEffect(() => {
+    let mounted = true;
+    const reload = async () => {
+      const cfg = await loadBhasmGraphSettings();
+      if (mounted) setGraphCfg(cfg);
+    };
+    reload();
+    window.addEventListener("claro:settings-changed", reload);
+    const id = setInterval(() => void useMcpStore.getState().refresh(), 5000);
+    useMcpStore.getState().refresh();
+    return () => {
+      mounted = false;
+      window.removeEventListener("claro:settings-changed", reload);
+      clearInterval(id);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!graphCfg) return;
+    if (graphCfg.autoStart && graphCfg.graphJson && !mcpRunning) {
+      void useMcpStore.getState().start({ graphJson: graphCfg.graphJson, python: graphCfg.python });
+    }
+  }, [graphCfg, mcpRunning]);
+
+  const autoStartForFile = async (filePath?: string) => {
+    const cfg = graphCfg ?? (await loadBhasmGraphSettings());
+    if (!cfg || cfg.autoStart === false) return;
+    const running = useMcpStore.getState().status?.running;
+    if (running) return;
+    const graphJson = cfg.graphJson ?? (await discoverGraphJson(filePath));
+    if (graphJson) await useMcpStore.getState().start({ graphJson, python: cfg.python });
+  };
+  const startSidecar = async () => {
+    const cfg = graphCfg ?? (await loadBhasmGraphSettings());
+    const graphJson = cfg.graphJson ?? (await discoverGraphJson(activeOpenDoc?.path));
+    if (graphJson) await useMcpStore.getState().start({ graphJson, python: cfg.python });
+  };
+
   // The preview follows the active tab (Claro UI / Python console / Kotlin compose).
   useEffect(() => {
     if (!activeDoc && (tab === "cl" || tab === "py" || tab === "kt")) setPreviewMode(tab);
@@ -405,6 +454,7 @@ export const App: React.FC = () => {
     const id = `doc-${Date.now()}`;
     setOpenDocs((docs) => [...docs, { id, name: res.name as string, path: res.path, lang: langForName(res.name as string), content: res.content as string }]);
     setActiveDoc(id);
+    void autoStartForFile(res.path);
   };
 
   const saveDoc = async () => {
@@ -589,8 +639,33 @@ export const App: React.FC = () => {
           }, 80);
         },
       },
+      {
+        id: "graph.toggle",
+        label: mcpRunning ? "Graph: stop graphify sidecar" : "Graph: start graphify sidecar",
+        group: "graph",
+        icon: "graph" as IconName,
+        run: () => {
+          if (mcpRunning) {
+            void useMcpStore.getState().stop();
+          } else {
+            void startSidecar();
+          }
+        },
+      },
+      {
+        id: "graph.chat",
+        label: "Open BHASM with graph assist",
+        group: "graph",
+        icon: "graph" as IconName,
+        run: () => {
+          setShowAi(true);
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent("claro:bhasm-prompt", { detail: { mode: "ask" } }));
+          }, 80);
+        },
+      },
     ];
-  }, [project, source, showPreview, activeFileName, pkgFileName]);
+  }, [project, source, showPreview, activeFileName, pkgFileName, mcpRunning]);
 
   const jumpToLine = (line: number) => {
     const editor = editorRef.current;
@@ -1122,6 +1197,21 @@ export const App: React.FC = () => {
             <Icon name="lock" size={13} />
             <span>local-first</span>
           </div>
+          <button
+            className={`statusbar__item statusbar__item--click statusbar__graph${mcpRunning ? " statusbar__graph--on" : ""}`}
+            onClick={() => (mcpRunning ? void useMcpStore.getState().stop() : void startSidecar())}
+            title={
+              mcpRunning
+                ? `graphify sidecar running — ${mcpTools} graph tools\n${useMcpStore.getState().status?.graphJson ?? ""} · click to stop`
+                : mcpError && !graphCfg?.graphJson
+                  ? `graphify sidecar ${mcpError} — configure bhasm.json → graphJson to auto-start`
+                  : "graphify sidecar off — click to start, or configure bhasm.json (Settings → open file → auto-starts)"
+            }
+          >
+            <Icon name="graph" size={13} />
+            <span className="statusbar__graph-dot" data-on={mcpRunning} />
+            <span>{mcpRunning ? (mcpTools ? `graph ${mcpTools}` : "graph on") : "graph off"}</span>
+          </button>
           <div className="statusbar__item statusbar__item--accent">
             <Icon name="sparkle" size={13} />
             <span>BHASM ready</span>

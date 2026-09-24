@@ -4,6 +4,7 @@ import { readFileSync, readdirSync, statSync, mkdirSync, writeFileSync, existsSy
 import os from 'os';
 import { spawn, spawnSync } from 'child_process';
 import { isDev } from './util.js';
+import { GraphifyMcpClient } from './mcpClient.js';
 
 const MIME_TYPES: Record<string, string> = {
   '.html': 'text/html',
@@ -116,6 +117,10 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('before-quit', () => {
+  graphifyMcp.close();
 });
 
 ipcMain.handle('app:quit', () => app.quit());
@@ -242,6 +247,70 @@ ipcMain.handle(
     }
   },
 );
+
+// ---- Graphify MCP sidecar: BHASM gets a project graph to ground answers ----
+// `graphify.serve` (Python) exposes query_graph / graph_stats / get_node over
+// MCP stdio. The main process owns one GraphifyMcpClient (spawned on demand,
+// long-running, hot-reloads graph.json itself) and the renderer reaches it via
+// claro:mcp:*. The Python binary and graph path are caller-supplied; everything
+// degrades to {ok:false} when python/graphify/graph.json is unavailable.
+const graphifyMcp = new GraphifyMcpClient();
+
+ipcMain.handle('claro:mcp:start', async (_e, opts: { graphJson: string; python?: string }) => {
+  if (!opts || typeof opts.graphJson !== 'string' || !opts.graphJson.trim()) {
+    return { ok: false, running: false, error: 'A graph.json path is required.' };
+  }
+  if (!existsSync(opts.graphJson)) {
+    return { ok: false, running: false, error: `graph.json not found: ${opts.graphJson}` };
+  }
+  try {
+    const status = await graphifyMcp.spawn({ graphJson: opts.graphJson, python: opts.python });
+    return status;
+  } catch (e) {
+    return { ok: false, running: false, error: e instanceof Error ? e.message : String(e) };
+  }
+});
+
+ipcMain.handle('claro:mcp:status', () => graphifyMcp.status());
+
+ipcMain.handle('claro:mcp:request', async (_e, payload: { method: string; params?: Record<string, unknown> }) => {
+  if (!payload || typeof payload.method !== 'string') {
+    return { ok: false, error: 'method required' };
+  }
+  if (!graphifyMcp.running) {
+    return { ok: false, error: graphifyMcp.status().error ?? 'graphify serve is not running' };
+  }
+  try {
+    const result = await graphifyMcp.request(payload.method, payload.params ?? {});
+    return { ok: true, result };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+});
+
+ipcMain.handle('claro:mcp:call', async (_e, payload: { name: string; arguments?: Record<string, unknown> }) => {
+  if (!payload || typeof payload.name !== 'string') {
+    return { ok: false, error: 'tool name required' };
+  }
+  if (!graphifyMcp.running) {
+    return { ok: false, error: graphifyMcp.status().error ?? 'graphify serve is not running' };
+  }
+  return graphifyMcp.callTool(payload.name, payload.arguments ?? {});
+});
+
+ipcMain.handle('claro:mcp:stop', () => {
+  graphifyMcp.close();
+  return { ok: true };
+});
+
+// Best-effort graph.json discovery near an opened file, so the sidecar can
+// auto-start without any configuration. Returns the first existing candidate:
+//   <dir>/graph.json, <dir>/graphify-out/graph.json, <dir>/.graphify/graph.json
+ipcMain.handle('claro:mcp:discover', (_e, dir: string) => {
+  if (typeof dir !== 'string' || !dir) return null;
+  const candidates = ['graph.json', 'graphify-out/graph.json', '.graphify/graph.json'].map((p) => join(dir, p));
+  return candidates.find((p) => existsSync(p)) ?? null;
+});
 
 // ---- Term: real interactive ConPTY-style shell inside the IDE ----
 // Same child-process discipline as package-runner.cjs (pipe the stream, never

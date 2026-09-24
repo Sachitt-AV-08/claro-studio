@@ -11,6 +11,9 @@ import type { Project, PatchOp } from "@project/contracts";
 import { createBhasm, type Bhasm } from "@project/ai";
 import { validateOps, applyOps } from "@project/dsl";
 import { schemaFor } from "@project/contracts";
+import { mcpCallTool, type McpCallResult } from "../mcp";
+import { guardrailOps, isConfidentReject } from "../decisions";
+import { loadBhasmGraphSettings } from "../../graph/graphSettings";
 
 export interface StoreAdapter {
   applyOps: (ops: PatchOp[]) => { ok: boolean; error?: string };
@@ -98,6 +101,11 @@ export const TOOLS: Tool[] = [
       const ops = ((args.ops as unknown[]) ?? []) as PatchOp[];
       const check = validateOps(ops);
       if (!check.ok) return { ok: false, error: check.error };
+      // Claro Decisions guardrail: never let a confident-rejected patch through.
+      const guard = await guardrailOps(ops);
+      if (isConfidentReject(guard, await loadBhasmGraphSettings())) {
+        return { ok: false, error: `Guardrail blocked: ${guard.reason ?? "confident reject"}` };
+      }
       return ctx.store.applyOps(ops);
     },
   },
@@ -124,6 +132,36 @@ export const TOOLS: Tool[] = [
       const node = findNode(ctx.project, nodeId);
       const schema = node ? schemaFor((node as { type: string }).type) : undefined;
       return { node, schema };
+    },
+  },
+  {
+    id: "query_graph",
+    name: "query_graph",
+    description:
+      "Ask the project graph (graphify) a structural question — " +
+      "component usage, page/section structure, cross-file references. " +
+      "Returns a BFS/neighborhood traversal of matching nodes.",
+    inputSchema: ["question: string"],
+    async run(args, _ctx): Promise<unknown | McpCallResult> {
+      const question = String(args.question ?? "");
+      if (!question.trim()) return { ok: false, error: "A question is required." };
+      const r = await mcpCallTool("query_graph", { question });
+      return r.ok
+        ? r.text
+        : { ok: false, note: "graphify MCP sidecar not running", error: r.error };
+    },
+  },
+  {
+    id: "graph_stats",
+    name: "graph_stats",
+    description:
+      "Return node / edge / community counts for the graphify project graph.",
+    inputSchema: [],
+    async run(_args, _ctx): Promise<unknown | McpCallResult> {
+      const r = await mcpCallTool("graph_stats");
+      return r.ok
+        ? r.text
+        : { ok: false, note: "graphify MCP sidecar not running", error: r.error };
     },
   },
   {

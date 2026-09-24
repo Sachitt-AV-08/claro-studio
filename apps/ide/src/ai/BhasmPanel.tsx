@@ -5,6 +5,9 @@ import { runtime, type BhasmMessage } from "../bhasm/runtime";
 import { type BhasmMode } from "../bhasm/agent";
 import { skills } from "../bhasm/skills";
 import { Icon, type IconName } from "../components/Icon";
+import { useMcpStore } from "../graph/mcpStore";
+import { useDecisionStore } from "../bhasm/decisionStore";
+import { classifySeed } from "../bhasm/decisions";
 
 interface PanelProps {
   onToggle: () => void;
@@ -45,6 +48,8 @@ const TOOL_CHIP: Record<string, { label: string }> = {
   comment_to_idea: { label: "comment_to_idea" },
   describe_patch: { label: "describe_patch" },
   export_project: { label: "export_project" },
+  query_graph: { label: "query_graph" },
+  graph_stats: { label: "graph_stats" },
 };
 
 let idCounter = 0;
@@ -86,6 +91,10 @@ export const BhasmPanel: React.FC<PanelProps> = ({ onToggle, height }) => {
   const [todos, setTodos] = useState<ChatTodo[]>([]);
   const [todayOps, setTodayOps] = useState<import("@project/contracts").PatchOp[]>([]);
   const [healthState, setHealthState] = useState<"checking" | "ok" | "offline" | "error">("checking");
+  const [graphAssist, setGraphAssist] = useState(true);
+  const mcpStatus = useMcpStore((s) => s.status);
+  const lastRoute = useDecisionStore((s) => s.lastRoute);
+  const lastGuardrail = useDecisionStore((s) => s.lastGuardrail);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -94,14 +103,18 @@ export const BhasmPanel: React.FC<PanelProps> = ({ onToggle, height }) => {
     });
   }, []);
 
-  // Consume a "#" idea seed from the editor (double-click) → prefill explain-comment
+  // Consume a "#" idea seed from the editor (double-click) → BHASM classifies
+  // the intent (Claro Decisions) and prefills the best mode.
   useEffect(() => {
     const onSeed = (e: Event) => {
       const detail = (e as CustomEvent).detail as { idea: string };
       if (!detail?.idea) return;
-      setMode("explain-comment");
-      setInput(`Explain and improve: ${detail.idea}`);
-      append({ id: nextId(), role: "user", text: `Explain the idea: ${detail.idea}` });
+      void (async () => {
+        const { mode: seedMode } = await classifySeed(detail.idea);
+        setMode(seedMode);
+        setInput(`Explain and improve: ${detail.idea}`);
+        append({ id: nextId(), role: "user", text: `Explain the idea: ${detail.idea}` });
+      })();
     };
     window.addEventListener("claro:bhasm-prompt", onSeed);
     return () => window.removeEventListener("claro:bhasm-prompt", onSeed);
@@ -141,6 +154,7 @@ export const BhasmPanel: React.FC<PanelProps> = ({ onToggle, height }) => {
         store: {
           applyOps: (ops) => useClaroStore.getState().applyOps(ops),
         },
+        graphAssist,
       },
       {
         onEvent(ev) {
@@ -254,6 +268,31 @@ export const BhasmPanel: React.FC<PanelProps> = ({ onToggle, height }) => {
 
         <div className="ai__spacer" />
 
+        <button
+          className={`ai__graph${graphAssist ? " ai__graph--on" : ""}`}
+          onClick={() => setGraphAssist((v) => !v)}
+          title={
+            mcpStatus?.running
+              ? `${graphAssist ? "Graph assist ON — query_graph grounds answers\n" : "Graph assist off\n"}sidecar: ${mcpStatus.graphJson ?? ""} · ${mcpStatus.tools?.length ?? 0} graph tools`
+              : "Graph assist needs the graphify sidecar (status bar shows graph state)"
+          }
+        >
+          <Icon name="graph" size={13} />
+          <span className="ai__graph-dot" data-on={!!mcpStatus?.running} />
+        </button>
+
+        {lastRoute && (
+          <span
+            className="ai__decide"
+            title={`decision layer · ${lastRoute.provider}${lastRoute.task === "classify" ? " · intent classify" : " · router"}`}
+          >
+            <Icon name="zap" size={11} />
+            <span className="ai__decide-tool">{lastRoute.choice.replace(/_/g, " ")}</span>
+            <span className="ai__decide-prob">{(lastRoute.probability * 100).toFixed(0)}%</span>
+            <span className={`ai__decide-step ai__decide-step--${lastRoute.step}`}>{lastRoute.step}</span>
+          </span>
+        )}
+
         <span
           className={`ai__status ai__status--${healthState}`}
           title={
@@ -291,6 +330,17 @@ export const BhasmPanel: React.FC<PanelProps> = ({ onToggle, height }) => {
               </button>
               <button onClick={() => setInput("Review the project")}>Review the project</button>
             </div>
+          </div>
+        )}
+
+        {lastGuardrail?.choice === "reject" && lastGuardrail.step === "act" && (
+          <div className="ai__guard" role="status">
+            <Icon name="shield" size={12} />
+            <span>
+              Guardrail blocked this patch (
+              {(lastGuardrail.probability * 100).toFixed(0)}% reject confidence).
+              {lastGuardrail.reason ? ` ${lastGuardrail.reason}` : ""}
+            </span>
           </div>
         )}
 

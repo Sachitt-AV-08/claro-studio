@@ -25,6 +25,32 @@ interface ClaroElectronApi {
     method: string,
     body?: unknown,
   ) => Promise<{ status: number; ok: boolean; text: string; error?: string }>;
+  claroMcpStart: (opts: { graphJson: string; python?: string }) => Promise<{
+    ok: boolean;
+    running: boolean;
+    tools?: string[];
+    error?: string;
+  }>;
+  claroMcpStatus: () => Promise<{
+    ok: boolean;
+    running: boolean;
+    python?: string;
+    graphJson?: string;
+    tools?: string[];
+    error?: string;
+  }>;
+  claroMcpRequest: (method: string, params?: Record<string, unknown>) => Promise<{
+    ok: boolean;
+    result?: unknown;
+    error?: string;
+  }>;
+  claroMcpCall: (name: string, args?: Record<string, unknown>) => Promise<{
+    ok: boolean;
+    text?: string;
+    error?: string;
+  }>;
+  claroMcpStop: () => Promise<{ ok: boolean }>;
+  claroMcpDiscover: (dir: string) => Promise<string | null>;
   claroPkgHost: () => Promise<{
     defaultOutDir: string;
     electronVersion: string;

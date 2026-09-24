@@ -15,6 +15,17 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
     "clearBreakpoints": "Shift+F5",
     "commandPalette": "Ctrl+Shift+P",
   },
+  "bhasm.json": {
+    "graphJson": "",
+    "python": "",
+    "autoStart": true,
+    "graphAssist": true,
+    "decision": {
+      "model": "qwen2.5:3b",
+      "act": 0.9,
+      "ask": 0.6,
+    },
+  },
 };
 
 export const SettingsView: React.FC = () => {
@@ -45,7 +56,7 @@ export const SettingsView: React.FC = () => {
       else {
         setDirty((d) => ({ ...d, [name]: false }));
         setStatus(`Saved ${name}`);
-        if (name === "settings.json") window.dispatchEvent(new Event("claro:settings-changed"));
+        if (name === "settings.json" || name === "bhasm.json") window.dispatchEvent(new Event("claro:settings-changed"));
       }
     } catch (e) {
       setStatus(`Invalid JSON: ${e instanceof Error ? e.message : String(e)}`);

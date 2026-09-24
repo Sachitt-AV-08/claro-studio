@@ -30,7 +30,7 @@ export function agentFor(mode: BhasmMode): BhasmAgent {
         name: "BHASM",
         description: "Propose a validated PatchOp batch for a described change.",
         model: "qwen2.5:3b",
-        tools: ["propose_patch", "apply_patch", "inspect_node", "comment_to_idea"],
+        tools: ["propose_patch", "apply_patch", "inspect_node", "comment_to_idea", "query_graph"],
         systemPrompt:
           `${BASE}\n` +
           `MODE: code. The user describes a UI change in natural language. You respond with a ` +
@@ -43,7 +43,7 @@ export function agentFor(mode: BhasmMode): BhasmAgent {
         name: "BHASM",
         description: "Run the deterministic reviewer plus LLM feedback.",
         model: "qwen2.5:3b",
-        tools: ["review", "inspect_node"],
+        tools: ["review", "inspect_node", "query_graph"],
         systemPrompt:
           `${BASE}\n` +
           `MODE: review. Audit the project against the rules engine and the ideas comments. ` +
@@ -55,11 +55,13 @@ export function agentFor(mode: BhasmMode): BhasmAgent {
         name: "BHASM",
         description: "Seed from a # comment selected in the editor.",
         model: "qwen2.5:3b",
-        tools: ["comment_to_idea", "propose_patch", "apply_patch", "inspect_node"],
+        tools: ["comment_to_idea", "inspect_node", "query_graph"],
         systemPrompt:
           `${BASE}\n` +
-          `MODE: explain-comment. The user double-clicked a "#" idea comment. Explain what it ` +
-          `means and propose the concrete PatchOps that would fulfil it, honoring reversibility.`,
+          `MODE: explain-comment. The user double-clicked a "#" idea comment. First explain what ` +
+          `the idea means, grounded in the project schema and current state, and be honest about ` +
+          `tradeoffs. Only if the idea clearly demands a concrete change may the engine propose ` +
+          `PatchOps for it — explaining is the default behavior, never generate ops on its own.`,
       };
     default: // ask
       return {
@@ -67,7 +69,7 @@ export function agentFor(mode: BhasmMode): BhasmAgent {
         name: "BHASM",
         description: "Answer a question about the project or the language.",
         model: "qwen2.5:3b",
-        tools: ["inspect_node", "comment_to_idea"],
+        tools: ["inspect_node", "comment_to_idea", "query_graph"],
         systemPrompt:
           `${BASE}\n` +
           `MODE: ask. Answer questions about the current .cl project and the Claro language. ` +
