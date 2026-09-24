@@ -18,11 +18,18 @@ export interface TermLine {
 export function TerminalPanel({
   cwd,
   feedRef,
+  fontFamily,
 }: {
   cwd?: string;
   feedRef?: { current: ((l: TermLine) => void) | null };
+  fontFamily?: string;
 }) {
   const [lines, setLines] = useState<TermLine[]>([]);
+
+  const runGitCmd = (cmd: string) => {
+    if (!idRef.current) return;
+    void window.electronAPI?.claroTermWrite?.(idRef.current, `git ${cmd}\r`);
+  };
 
   useEffect(() => {
     if (!feedRef) return;
@@ -91,13 +98,24 @@ export function TerminalPanel({
   };
 
   return (
-    <div className="terminalpanel">
+    <div className="terminalpanel" style={{ "--term-font": fontFamily || "var(--font-mono)" } as React.CSSProperties}>
       <div className="terminalpanel__head">
         <span className="terminalpanel__title">
           <Icon name="terminal" size={14} /> Terminal
           <span className={`terminalpanel__dot${running ? " terminalpanel__dot--go" : ""}`} />
         </span>
         <span className="terminalpanel__cwd">{cwd ?? "cwd"}</span>
+        <div className="terminalpanel__git">
+          <button className="terminalpanel__git-btn" title="git status" onClick={() => runGitCmd("status")} disabled={!running}>
+            <Icon name="git-branch" size={12} />
+          </button>
+          <button className="terminalpanel__git-btn" title="git log --oneline -10" onClick={() => runGitCmd("log --oneline -10")} disabled={!running}>
+            <Icon name="history" size={12} />
+          </button>
+          <button className="terminalpanel__git-btn" title="git commit -m" onClick={() => runGitCmd("commit -m \"")} disabled={!running}>
+            <Icon name="check" size={12} />
+          </button>
+        </div>
       </div>
       <div className="terminalpanel__body">
         {lines.map((l, i) => (

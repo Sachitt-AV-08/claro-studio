@@ -143,6 +143,35 @@ ipcMain.handle('claro:read-skills', () => {
   }
 });
 
+ipcMain.handle('claro:skills:list', () => {
+  try {
+    const registryPath = join(app.getAppPath(), 'skills', 'registry.json');
+    const data = readFileSync(registryPath, 'utf8');
+    const registry = JSON.parse(data);
+    return registry.extensions;
+  } catch {
+    return [];
+  }
+});
+
+ipcMain.handle('claro:skills:install', (_e, id: string) => {
+  try {
+    const registryPath = join(app.getAppPath(), 'skills', 'registry.json');
+    const data = readFileSync(registryPath, 'utf8');
+    const registry = JSON.parse(data) as {
+      extensions: Array<{ id: string; installed: boolean }>;
+    };
+    const ext = registry.extensions.find((e: { id: string }) => e.id === id);
+    if (!ext) return { ok: false, error: 'Extension not found' };
+    if (ext.installed) return { ok: false, error: 'Already installed' };
+    ext.installed = true;
+    writeFileSync(registryPath, JSON.stringify(registry, null, 2));
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+});
+
 ipcMain.handle('claro:read-text', (_e, path: string) => {
   try {
     const resolved = join(SKILLS_DIR, basename(path));
@@ -150,6 +179,46 @@ ipcMain.handle('claro:read-text', (_e, path: string) => {
     return readFileSync(resolved, 'utf8');
   } catch {
     return '';
+  }
+});
+
+// ---- File open/save for the multi-file workspace (toggle explorer + Ctrl+S) ----
+const FILE_FILTERS = [
+  { name: 'Claro & Text', extensions: ['cl', 'py', 'kt', 'ts', 'tsx', 'js', 'jsx', 'json', 'html', 'css', 'md', 'txt'] },
+  { name: 'All Files', extensions: ['*'] },
+];
+
+ipcMain.handle('claro:file:open', async () => {
+  const win = mainWindow ?? undefined;
+  const result = win
+    ? await dialog.showOpenDialog(win, { filters: FILE_FILTERS, properties: ['openFile'] })
+    : await dialog.showOpenDialog({ filters: FILE_FILTERS, properties: ['openFile'] });
+  if (result.canceled || !result.filePaths[0]) return { ok: false, canceled: true };
+  try {
+    const p = result.filePaths[0];
+    const content = readFileSync(p, 'utf8');
+    return { ok: true, path: p, name: basename(p), content };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+});
+
+ipcMain.handle('claro:file:save', async (_e, opts: { path?: string; name: string; content: string }) => {
+  const target = opts.path && opts.path.trim() ? opts.path.trim() : null;
+  let savePath = target;
+  if (!savePath) {
+    const win = mainWindow ?? undefined;
+    const result = win
+      ? await dialog.showSaveDialog(win, { defaultPath: opts.name, filters: FILE_FILTERS })
+      : await dialog.showSaveDialog({ defaultPath: opts.name, filters: FILE_FILTERS });
+    if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+    savePath = result.filePath;
+  }
+  try {
+    writeFileSync(savePath, opts.content, 'utf8');
+    return { ok: true, path: savePath };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
 });
 
@@ -256,6 +325,64 @@ ipcMain.handle('claro:sys:stats', () => {
   }
   return { time, battery };
 });
+
+ipcMain.handle('claro:git:branch', (_e, cwd?: string) => {
+  const dir = cwd && existsSync(cwd) ? cwd : app.getAppPath();
+  try {
+    const out = spawnSync('git', ['branch', '--show-current'], {
+      cwd: dir,
+      encoding: 'utf8',
+      windowsHide: true,
+      timeout: 3000,
+    });
+    const branch = (out.stdout ?? '').trim();
+    return branch || 'no-branch';
+  } catch {
+    return 'error';
+  }
+});
+
+ipcMain.handle('claro:debug:evaluate', (_e, expr: string) => {
+  try {
+    const out = spawnSync(process.env.ComSpec || 'cmd.exe', ['/d', '/c', `set /p "dummy=" <nul & ${String(expr).slice(0, 500)}`], {
+      encoding: 'utf8',
+      windowsHide: true,
+      timeout: 4000,
+    });
+    if (out.error) return { ok: false, error: out.error.message };
+    return { ok: out.status === 0, stdout: (out.stdout ?? '').trim(), stderr: (out.stderr ?? '').trim() };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+});
+
+const SETTINGS_DIR = join(app.getAppPath(), 'settings');
+
+function readSettingsJson(name: string, fallback: Record<string, unknown>): Record<string, unknown> {
+  try {
+    const p = join(SETTINGS_DIR, name);
+    if (!existsSync(p)) return fallback;
+    return JSON.parse(readFileSync(p, 'utf8')) as Record<string, unknown>;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeSettingsJson(name: string, value: Record<string, unknown>): { ok: boolean; error?: string } {
+  try {
+    mkdirSync(SETTINGS_DIR, { recursive: true });
+    writeFileSync(join(SETTINGS_DIR, name), JSON.stringify(value, null, 2));
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+ipcMain.handle('claro:settings:get', (_e, name: string) =>
+  readSettingsJson(name, {}));
+
+ipcMain.handle('claro:settings:set', (_e, name: string, value: Record<string, unknown>) =>
+  writeSettingsJson(name, value));
 
 // ---- App packaging: turn any exported project into a native EXE installer ----
 // The renderer exports a self-contained HTML artifact (Claro UI + embedded

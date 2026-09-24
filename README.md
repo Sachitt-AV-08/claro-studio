@@ -30,6 +30,7 @@ Ollama model (`qwen2.5:3b`), no cloud, no telemetry.
 - Tolerant parser, canonical formatter, patch engine (`packages/dsl`)
 - Local AI structured patches, reviewer, offline proof (`packages/ai`, Ollama `qwen2.5:3b`)
 - Dark IDE workbench with custom title bar, activity bar, explorer, preview, status bar
+- Multi-file workspace (open/save native files; dynamic tabs), Settings/keybindings JSON that live-apply to the editor, Git branch statusbar + terminal git toolbar, debug breakpoints, Build → EXE installer, single-file HTML export
 - Packaged Windows runnable: `apps/ide/release/win-unpacked/CLARO Workbench.exe`
 
 ### Planned (this build)

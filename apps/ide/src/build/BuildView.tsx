@@ -11,6 +11,7 @@ interface BuildViewProps {
   ktCode: string;
   onBuildLog?: (line: string) => void;
   onRun?: (cmd: string) => void;
+  onBuildAndRun?: () => void;
 }
 
 const STATUS_LABEL: Record<BuildStatus, string> = {
@@ -21,7 +22,7 @@ const STATUS_LABEL: Record<BuildStatus, string> = {
   cancelled: "Cancelled",
 };
 
-export function BuildView({ project, pyCode, ktCode, onBuildLog, onRun }: BuildViewProps) {
+export function BuildView({ project, pyCode, ktCode, onBuildLog, onRun, onBuildAndRun }: BuildViewProps) {
   const suggestedName = useMemo(() => {
     const page = project.pages[0]?.name;
     return page ? `${page} App` : "My App";
@@ -37,6 +38,7 @@ export function BuildView({ project, pyCode, ktCode, onBuildLog, onRun }: BuildV
   const [error, setError] = useState("");
   const [hint, setHint] = useState("");
   const buildId = useRef("");
+  const autoRunRef = useRef(false);
   const logBox = useRef<HTMLPreElement>(null);
 
   const addLog = useCallback((line: string) => {
@@ -70,6 +72,11 @@ export function BuildView({ project, pyCode, ktCode, onBuildLog, onRun }: BuildV
       if (p.canceled) addLog("Build cancelled.");
       setArtifacts(p.artifacts);
       if (p.artifacts[0]) onBuildLog?.(`claro:exec › built ${p.artifacts[0]} — Run fetches it via claro:term:spawn(cmd)`);
+      if (autoRunRef.current && p.artifacts[0] && !p.canceled) {
+        autoRunRef.current = false;
+        onRun?.(p.artifacts[0]);
+        onBuildAndRun?.();
+      }
     });
     const offError = api.claroPkgOnError((p) => {
       if (p.id !== buildId.current) return;
@@ -125,6 +132,11 @@ export function BuildView({ project, pyCode, ktCode, onBuildLog, onRun }: BuildV
     const chosen = await window.electronAPI?.claroPkgPickDir();
     if (chosen) setOutDir(chosen);
   }, []);
+
+  const buildAndRun = useCallback(() => {
+    autoRunRef.current = true;
+    start();
+  }, [start]);
 
   const openPath = useCallback((p: string) => () => void window.electronAPI?.claroPkgOpenPath(p), []);
 
@@ -211,6 +223,11 @@ export function BuildView({ project, pyCode, ktCode, onBuildLog, onRun }: BuildV
         {artifacts.length > 0 && (
           <button className="build__go" onClick={() => onRun?.(artifacts[0])} title="Run the first built artifact in the live terminal">
             <Icon name="play" size={14} /> Run
+          </button>
+        )}
+        {status === "done" && artifacts.length > 0 && (
+          <button className="build__go build__go--primary" onClick={buildAndRun} title="Build and run the app">
+            <Icon name="play" size={14} /> Build & Run
           </button>
         )}
       </section>

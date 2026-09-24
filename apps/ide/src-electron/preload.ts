@@ -12,6 +12,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   claroReadSkills: () => ipcRenderer.invoke('claro:read-skills') as Promise<string[]>,
   claroReadText: (path: string) => ipcRenderer.invoke('claro:read-text', path) as Promise<string>,
+  claroSkillsList: () => ipcRenderer.invoke('claro:skills:list') as Promise<Array<{
+    id: string;
+    name: string;
+    version: string;
+    description: string;
+    author: string;
+    category: string;
+    installed: boolean;
+  }>>,
+  claroSkillsInstall: (id: string) => ipcRenderer.invoke('claro:skills:install', id) as Promise<{ ok: boolean; error?: string }>,
+  claroFileOpen: () =>
+    ipcRenderer.invoke('claro:file:open') as Promise<{ ok: boolean; canceled?: boolean; path?: string; name?: string; content?: string; error?: string }>,
+  claroFileSave: (opts: { path?: string; name: string; content: string }) =>
+    ipcRenderer.invoke('claro:file:save', opts) as Promise<{ ok: boolean; canceled?: boolean; path?: string; error?: string }>,
   claroAiFetch: (path: string, method: string, body?: unknown) =>
     ipcRenderer.invoke('claro:ai:fetch', { path, method, body }) as Promise<{
       status: number;
@@ -56,6 +70,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   claroSysStats: () =>
     ipcRenderer.invoke('claro:sys:stats') as Promise<{ time: string; battery: number | null }>,
+  claroGitBranch: (cwd?: string) =>
+    ipcRenderer.invoke('claro:git:branch', cwd) as Promise<string>,
+  claroDebugEvaluate: (expr: string) =>
+    ipcRenderer.invoke('claro:debug:evaluate', expr) as Promise<{ ok: boolean; stdout?: string; stderr?: string; error?: string }>,
+  claroSettingsGet: (name: string) =>
+    ipcRenderer.invoke('claro:settings:get', name) as Promise<Record<string, unknown>>,
+  claroSettingsSet: (name: string, value: Record<string, unknown>) =>
+    ipcRenderer.invoke('claro:settings:set', name, value) as Promise<{ ok: boolean; error?: string }>,
   claroPkgOnDone: (cb: (p: { id: string; artifacts: string[]; canceled: boolean }) => void) => {
     const listener = (_: unknown, p: { id: string; artifacts: string[]; canceled: boolean }) => cb(p);
     ipcRenderer.on('claro:pkg:done', listener);
@@ -78,6 +100,18 @@ declare global {
       onMaximizeChange: (callback: (maximized: boolean) => void) => () => void;
       claroReadSkills: () => Promise<string[]>;
       claroReadText: (path: string) => Promise<string>;
+      claroSkillsList: () => Promise<Array<{
+        id: string;
+        name: string;
+        version: string;
+        description: string;
+        author: string;
+        category: string;
+        installed: boolean;
+      }>>;
+      claroSkillsInstall: (id: string) => Promise<{ ok: boolean; error?: string }>;
+      claroFileOpen: () => Promise<{ ok: boolean; canceled?: boolean; path?: string; name?: string; content?: string; error?: string }>;
+      claroFileSave: (opts: { path?: string; name: string; content: string }) => Promise<{ ok: boolean; canceled?: boolean; path?: string; error?: string }>;
       claroAiFetch: (
         path: string,
         method: string,
@@ -97,6 +131,10 @@ declare global {
       claroPkgOnDone: (cb: (p: { id: string; artifacts: string[]; canceled: boolean }) => void) => () => void;
       claroPkgOnError: (cb: (p: { id: string; error: string }) => void) => () => void;
       claroSysStats: () => Promise<{ time: string; battery: number | null }>;
+      claroGitBranch: (cwd?: string) => Promise<string>;
+      claroDebugEvaluate: (expr: string) => Promise<{ ok: boolean; stdout?: string; stderr?: string; error?: string }>;
+      claroSettingsGet: (name: string) => Promise<Record<string, unknown>>;
+      claroSettingsSet: (name: string, value: Record<string, unknown>) => Promise<{ ok: boolean; error?: string }>;
     };
   }
 }

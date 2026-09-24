@@ -1,16 +1,16 @@
 appId: com.claro.workbench
 productName: CLARO Workbench
 electronVersion: 29.4.6
-copyright: "Copyright © 2026 GLARO Workbench"
+copyright: "Copyright © 2026 CLARO Workbench"
 files:
   - "dist/**"
   - "dist-electron/**"
   - "vendor/**"
   - "skills/**"
   - "package.json"
-asar: false
+asar: true
 directories:
-  output: release
+  output: release/${version}
   buildResources: assets
 win:
   target:
@@ -18,6 +18,7 @@ win:
       arch:
         - x64
   icon: assets/icon.png
+  artifactName: "${productName}-${version}-${arch}.exe"
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true

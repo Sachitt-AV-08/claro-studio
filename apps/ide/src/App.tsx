@@ -5,6 +5,8 @@ import { useClaroStore } from "./store/claroStore";
 import { DevicePreview } from "./preview/DevicePreview";
 import { BhasmPanel } from "./ai/BhasmPanel";
 import { ExtensionsView } from "./extensions/ExtensionsView";
+import { SettingsView } from "./settings/SettingsView";
+import { useClaroSettings } from "./settings/useClaroSettings";
 import { StitchView } from "./stitch/StitchView";
 import { TasksView } from "./tasks/TasksView";
 import { BuildView } from "./build/BuildView";
@@ -42,7 +44,7 @@ function useDebounce<T>(value: T, delay: number): T {
   return debounced;
 }
 
-type ViewId = "explorer" | "bhasm" | "stitch" | "tasks" | "extensions" | "build";
+type ViewId = "explorer" | "bhasm" | "stitch" | "tasks" | "extensions" | "build" | "settings";
 
 interface ViewDef {
   id: ViewId;
@@ -57,9 +59,40 @@ const ACTIVITY_VIEWS: ViewDef[] = [
   { id: "tasks", icon: "checklist", title: "Tasks" },
   { id: "extensions", icon: "extensions", title: "Extensions" },
   { id: "build", icon: "package", title: "Build" },
+  { id: "settings", icon: "settings-gear", title: "Settings" },
 ];
 
 type TabId = "cl" | "pkg" | "py" | "kt";
+
+// Extra workspace documents opened via Explorer "New file" / File… Open.
+interface OpenDoc {
+  id: string;
+  name: string;
+  path?: string;
+  lang: string;
+  content: string;
+  dirty?: boolean;
+}
+
+const EXT_LANG: Record<string, string> = {
+  cl: "claro",
+  py: "python",
+  kt: "kotlin",
+  json: "json",
+  js: "javascript",
+  jsx: "javascript",
+  ts: "typescript",
+  tsx: "typescript",
+  html: "html",
+  css: "css",
+  md: "markdown",
+  txt: "plaintext",
+};
+
+function langForName(name: string): string {
+  const ext = name.split(".").pop()?.toLowerCase() ?? "";
+  return EXT_LANG[ext] ?? "plaintext";
+}
 
 const EDITOR_LANG: Record<TabId, string> = {
   cl: "claro",
@@ -110,6 +143,8 @@ export const App: React.FC = () => {
   const [activityHidden, setActivityHidden] = useState(false);
   // Tabs: "cl" (Claro source), "pkg" (artifact JSON), "py" (logic.py), "kt" (screen.kt).
   const [tab, setTab] = useState<TabId>("cl");
+  const [openDocs, setOpenDocs] = useState<OpenDoc[]>([]);
+  const [activeDoc, setActiveDoc] = useState<string | null>(null);
   const [files, setFiles] = useState<{ py: string; kt: string }>({ py: PY_STARTER, kt: KT_STARTER });
   const [previewMode, setPreviewMode] = useState<"cl" | "py" | "kt">("cl");
 
@@ -144,6 +179,9 @@ export const App: React.FC = () => {
   }, [paneWidths]);
 
   const [aiHeight, setAiHeight] = useState(240);
+  const [gitBranch, setGitBranch] = useState<string>("—");
+  const [breakpoints, setBreakpoints] = useState<number[]>([]);
+  const settings = useClaroSettings();
   const sashRef = useRef<HTMLDivElement>(null);
   const termFeed = useRef<((l: TermLine) => void) | null>(null);
 
@@ -210,6 +248,12 @@ export const App: React.FC = () => {
     }
   }, [debouncedSource, tab]);
 
+  // Live-apply Settings.json to the open editor and any future ones.
+  const { "editor.fontSize": fontSize, "editor.tabSize": tabSize, "editor.wordWrap": wordWrap } = settings;
+  useEffect(() => {
+    editorRef.current?.updateOptions({ fontSize, tabSize, wordWrap });
+  }, [fontSize, tabSize, wordWrap]);
+
   // Handle editor text change → parse for diagnostics/preview only. Never
   // rewrite the model while the user is typing (auto-canonicalizing every
   // keystroke caused cursor jumps and broke undo). Formatting happens on
@@ -242,6 +286,23 @@ export const App: React.FC = () => {
     });
     monaco.editor.setModelMarkers(model, "claro-problems", markers);
   }, [errors, warnings]);
+
+  // Debug breakpoints → red gutter dots
+  const debugDecosRef = useRef<monaco.editor.IEditorDecorationsCollection | null>(null);
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    if (!debugDecosRef.current) debugDecosRef.current = editor.createDecorationsCollection();
+    const decorations = breakpoints.map((line) => ({
+      range: new monaco.Range(line, 1, line, 1),
+      options: {
+        isWholeLine: false,
+        glyphMarginClassName: "claro-debug-breakpoint",
+        glyphMarginHoverMessage: { value: `Breakpoint · line ${line}` },
+      },
+    }));
+    debugDecosRef.current.set(decorations);
+  }, [breakpoints]);
 
   // Window controls via Electron API (graceful fallback in browser)
   const win = window.electronAPI;
@@ -276,6 +337,10 @@ export const App: React.FC = () => {
       } else if (e.key === "F1") {
         e.preventDefault();
         setPaletteOpen((v) => !v);
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        const doc = openDocs.find((d) => d.id === activeDoc);
+        if (doc) void saveDocRef.current();
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         if (tab === "cl") return; // leave Ctrl+K for the editor
       }
@@ -290,10 +355,50 @@ export const App: React.FC = () => {
     return unsubscribe;
   }, [win]);
 
+  // Git branch in statusbar — fetch on mount and poll every 5s
+  useEffect(() => {
+    const fetchBranch = async () => {
+      try {
+        const branch = await win?.claroGitBranch?.();
+        if (branch) setGitBranch(branch);
+      } catch {
+        setGitBranch("error");
+      }
+    };
+    fetchBranch();
+    const id = setInterval(fetchBranch, 5000);
+    return () => clearInterval(id);
+  }, [win]);
+
   // The preview follows the active tab (Claro UI / Python console / Kotlin compose).
   useEffect(() => {
-    if (tab === "cl" || tab === "py" || tab === "kt") setPreviewMode(tab);
-  }, [tab]);
+    if (!activeDoc && (tab === "cl" || tab === "py" || tab === "kt")) setPreviewMode(tab);
+  }, [tab, activeDoc]);
+
+  // Open a file from disk into a new workspace tab.
+  const openFile = async () => {
+    const res = await window.electronAPI?.claroFileOpen?.();
+    if (!res?.ok || !res.name || res.content === undefined) return;
+    const id = `doc-${Date.now()}`;
+    setOpenDocs((docs) => [...docs, { id, name: res.name as string, path: res.path, lang: langForName(res.name as string), content: res.content as string }]);
+    setActiveDoc(id);
+  };
+
+  const saveDoc = async () => {
+    const doc = openDocs.find((d) => d.id === activeDoc);
+    if (!doc) return;
+    const res = await window.electronAPI?.claroFileSave?.({ path: doc.path, name: doc.name, content: doc.content });
+    if (res?.ok && res.path) {
+      setOpenDocs((docs) => docs.map((d) => (d.id === doc.id ? { ...d, path: res.path as string, dirty: false } : d)));
+    }
+  };
+  const saveDocRef = useRef(saveDoc);
+  saveDocRef.current = saveDoc;
+
+  const closeDoc = (id: string) => {
+    setOpenDocs((docs) => docs.filter((d) => d.id !== id));
+    if (activeDoc === id) setActiveDoc(null);
+  };
 
   const pageName = project.pages[0]?.name ?? "Home";
   const activeFileName = `${pageName}.cl`;
@@ -306,8 +411,11 @@ export const App: React.FC = () => {
     kt: "screen.kt",
   };
 
-  const editorValue =
-    tab === "cl"
+  const activeOpenDoc = openDocs.find((d) => d.id === activeDoc) ?? null;
+
+  const editorValue = activeOpenDoc
+    ? activeOpenDoc.content
+    : tab === "cl"
       ? source
       : tab === "pkg"
         ? JSON.stringify(project, null, 2)
@@ -315,9 +423,13 @@ export const App: React.FC = () => {
           ? files.py
           : files.kt;
 
+  const editorLang = activeOpenDoc ? activeOpenDoc.lang : EDITOR_LANG[tab];
+
   const handleAnyChange = (value: string | undefined) => {
     if (value === undefined) return;
-    if (tab === "cl") handleEditorChange(value);
+    if (activeOpenDoc) {
+      setOpenDocs((docs) => docs.map((d) => (d.id === activeOpenDoc.id ? { ...d, content: value, dirty: true } : d)));
+    } else if (tab === "cl") handleEditorChange(value);
     else if (tab === "py") setFiles((f) => ({ ...f, py: value }));
     else if (tab === "kt") setFiles((f) => ({ ...f, kt: value }));
   };
@@ -359,6 +471,13 @@ export const App: React.FC = () => {
         run: () => setShowProblems((v) => !v),
       },
       {
+        id: "view.settings",
+        label: "Open Settings (JSON)",
+        group: "view",
+        icon: "settings-gear" as IconName,
+        run: () => go("settings"),
+      },
+      {
         id: "tab.pkg",
         label: `Open artifact tab (${pkgFileName})`,
         group: "tab",
@@ -370,7 +489,24 @@ export const App: React.FC = () => {
         label: `Open source tab (${activeFileName})`,
         group: "tab",
         icon: "file-code" as IconName,
-        run: () => setTab("cl"),
+        run: () => {
+          setActiveDoc(null);
+          setTab("cl");
+        },
+      },
+      {
+        id: "file.open",
+        label: "Open file… (Explorer)",
+        group: "file",
+        icon: "folder-opened" as IconName,
+        run: () => openFile(),
+      },
+      {
+        id: "file.save",
+        label: "Save current file (Ctrl+S)",
+        group: "file",
+        icon: "save" as IconName,
+        run: () => saveDocRef.current(),
       },
       {
         id: "view.preview",
@@ -466,6 +602,16 @@ export const App: React.FC = () => {
   const formatRef = useRef(formatDocument);
   formatRef.current = formatDocument;
 
+  const toggleBreakpoint = (line: number) => {
+    setBreakpoints((prev) => {
+      const next = prev.includes(line) ? prev.filter((l) => l !== line) : [...prev, line].sort((a, b) => a - b);
+      return next;
+    });
+  };
+  const breakRef = useRef(toggleBreakpoint);
+  breakRef.current = toggleBreakpoint;
+  const clearBreakRef = useRef(() => setBreakpoints([]));
+
   // double-click on a "#" idea line → seed BHASM explain-comment
   const mountEditor = (editor: monaco.editor.IStandaloneCodeEditor) => {
     editorRef.current = editor;
@@ -474,6 +620,26 @@ export const App: React.FC = () => {
       label: "Format Document",
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK],
       run: () => formatRef.current(),
+    });
+    editor.addAction({
+      id: "claro.toggle-breakpoint",
+      label: "Toggle Breakpoint (F9)",
+      keybindings: [monaco.KeyCode.F9],
+      run: () => {
+        const pos = editor.getPosition();
+        if (pos) breakRef.current(pos.lineNumber);
+      },
+    });
+    editor.addAction({
+      id: "claro.clear-breakpoints",
+      label: "Clear All Breakpoints (Shift+F5)",
+      keybindings: [monaco.KeyMod.Shift | monaco.KeyCode.F5],
+      run: () => clearBreakRef.current(),
+    });
+    editor.onMouseDown((e) => {
+      if (e.target?.type !== monaco.editor.MouseTargetType.GUTTER_LINE_NUMBERS) return;
+      const pos = e.target.position;
+      if (pos) breakRef.current(pos.lineNumber);
     });
     editor.onMouseDown((e) => {
       if (e.event.detail < 2) return;
@@ -557,37 +723,72 @@ export const App: React.FC = () => {
       <div className="tabstrip" style={{ WebkitAppRegion: "no-drag" }}>
         <div className="tabstrip__tabs">
           <button
-            className={`tab${tab === "cl" ? " tab--active" : ""}`}
-            onClick={() => setTab("cl")}
+            className={`tab${!activeOpenDoc && tab === "cl" ? " tab--active" : ""}`}
+            onClick={() => {
+              setActiveDoc(null);
+              setTab("cl");
+            }}
             title={activeFileName}
           >
             <Icon name="file-code" size={14} />
             <span className="tab__label">{tabFileNames.cl}</span>
           </button>
           <button
-            className={`tab${tab === "py" ? " tab--active" : ""}`}
-            onClick={() => setTab("py")}
+            className={`tab${!activeOpenDoc && tab === "py" ? " tab--active" : ""}`}
+            onClick={() => {
+              setActiveDoc(null);
+              setTab("py");
+            }}
             title="logic.py · Python logic (preview: console runtime)"
           >
             <Icon name="file-text" size={14} />
             <span className="tab__label">logic.py</span>
           </button>
           <button
-            className={`tab${tab === "kt" ? " tab--active" : ""}`}
-            onClick={() => setTab("kt")}
+            className={`tab${!activeOpenDoc && tab === "kt" ? " tab--active" : ""}`}
+            onClick={() => {
+              setActiveDoc(null);
+              setTab("kt");
+            }}
             title="screen.kt · Kotlin Compose (preview: rendered composables)"
           >
             <Icon name="file-code" size={14} />
             <span className="tab__label">screen.kt</span>
           </button>
           <button
-            className={`tab${tab === "pkg" ? " tab--active" : ""}`}
-            onClick={() => setTab("pkg")}
+            className={`tab${!activeOpenDoc && tab === "pkg" ? " tab--active" : ""}`}
+            onClick={() => {
+              setActiveDoc(null);
+              setTab("pkg");
+            }}
             title={`${pkgFileName} · exported artifact (JSON)`}
           >
             <Icon name="file-text" size={14} />
             <span className="tab__label">{tabFileNames.pkg}</span>
           </button>
+          {openDocs.map((doc) => (
+            <button
+              key={doc.id}
+              className={`tab${activeDoc === doc.id ? " tab--active" : ""}`}
+              onClick={() => setActiveDoc(doc.id)}
+              title={`${doc.path ?? doc.name}${doc.dirty ? " (unsaved)" : ""}`}
+            >
+              <Icon name={doc.lang === "plaintext" ? "file-text" : "file-code"} size={14} />
+              <span className="tab__label">{doc.name}</span>
+              {doc.dirty && <span className="tab__dot-marker">•</span>}
+              <span
+                className="tab__close"
+                role="button"
+                title="Close"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  closeDoc(doc.id);
+                }}
+              >
+                <Icon name="chrome-close" size={12} />
+              </span>
+            </button>
+          ))}
         </div>
         <div className="tabstrip__actions">
           <button
@@ -605,6 +806,20 @@ export const App: React.FC = () => {
             title="Export single-file HTML"
           >
             <Icon name="rocket" size={15} />
+          </button>
+          <button
+            className="tabstrip__action"
+            onClick={() => void saveDoc()}
+            title="Save current file (Ctrl+S)"
+          >
+            <Icon name="save" size={15} />
+          </button>
+          <button
+            className="tabstrip__action"
+            onClick={() => void openFile()}
+            title="Open file from disk"
+          >
+            <Icon name="folder-opened" size={15} />
           </button>
           <button
             className="tabstrip__action"
@@ -653,28 +868,42 @@ export const App: React.FC = () => {
             <aside className="pane pane--explorer" style={{ width: paneWidths.explorer, flex: "0 0 auto" }}>
               <div className="pane__header">
                 <span>Explorer</span>
-                <button className="pane__action" title="New file (coming soon)" disabled>
+                <button className="pane__action" title="Open a file from disk" onClick={() => void openFile()}>
                   <Icon name="new-file" size={14} />
                 </button>
               </div>
               <ul className="explorer__tree">
-                <li className="explorer__file explorer__file--active" onClick={() => select(project.pages[0]?.nodeId ?? null)}>
+                <li className={`explorer__file${!activeOpenDoc && tab === "cl" ? " explorer__file--active" : ""}`} onClick={() => { setActiveDoc(null); select(project.pages[0]?.nodeId ?? null); }}>
                   <Icon name="file-code" size={15} />
                   <span>{activeFileName}</span>
                 </li>
-                <li className="explorer__file" onClick={() => setTab("pkg")}>
+                <li className={`explorer__file${!activeOpenDoc && tab === "pkg" ? " explorer__file--active" : ""}`} onClick={() => { setActiveDoc(null); setTab("pkg"); }}>
                   <Icon name="file-text" size={15} />
                   <span>{pkgFileName}</span>
                 </li>
                 <li className="explorer__group-label">LOGIC</li>
-                <li className="explorer__file" onClick={() => setTab("py")} title="logic.py — Python logic">
+                <li className={`explorer__file${!activeOpenDoc && tab === "py" ? " explorer__file--active" : ""}`} onClick={() => { setActiveDoc(null); setTab("py"); }} title="logic.py — Python logic">
                   <Icon name="file-text" size={15} />
                   <span>logic.py</span>
                 </li>
-                <li className="explorer__file" onClick={() => setTab("kt")} title="screen.kt — Kotlin Compose">
+                <li className={`explorer__file${!activeOpenDoc && tab === "kt" ? " explorer__file--active" : ""}`} onClick={() => { setActiveDoc(null); setTab("kt"); }} title="screen.kt — Kotlin Compose">
                   <Icon name="file-code" size={15} />
                   <span>screen.kt</span>
                 </li>
+                {openDocs.length > 0 && (
+                  <li className="explorer__group-label">OPEN FILES</li>
+                )}
+                {openDocs.map((doc) => (
+                  <li
+                    key={doc.id}
+                    className={`explorer__file${activeDoc === doc.id ? " explorer__file--active" : ""}`}
+                    onClick={() => setActiveDoc(doc.id)}
+                    title={`${doc.path ?? doc.name}${doc.dirty ? " (unsaved)" : ""}`}
+                  >
+                    <Icon name={doc.lang === "plaintext" ? "file-text" : "file-code"} size={15} />
+                    <span>{doc.name}{doc.dirty ? " •" : ""}</span>
+                  </li>
+                ))}
                 {project.components.length > 0 && (
                   <li className="explorer__group-label">COMPONENTS</li>
                 )}
@@ -703,7 +932,8 @@ export const App: React.FC = () => {
           <section className="pane pane--editor" style={{ flex: "1 1 auto", display: "flex", flexDirection: "column", minWidth: 0 }}>
             <div className="pane__header pane__header--editor">
               <span>
-                <Icon name="code" size={12} /> {tabFileNames[tab]}
+                <Icon name="code" size={12} /> {activeOpenDoc ? activeOpenDoc.name : tabFileNames[tab]}
+                {activeOpenDoc?.dirty && <span className="tab__dot-marker" title="unsaved changes">•</span>}
               </span>
               <span className="pane__sub">
                 {tab === "cl" ? (
@@ -722,25 +952,25 @@ export const App: React.FC = () => {
             <Editor
               height="100%"
               theme="claro-dark"
-              defaultLanguage={EDITOR_LANG[tab]}
-              language={EDITOR_LANG[tab]}
-              key={tab}
+              defaultLanguage={editorLang}
+              language={editorLang}
+              key={activeOpenDoc ? activeOpenDoc.id : tab}
               value={editorValue}
               onChange={handleAnyChange}
               options={{
                 fontFamily: "var(--font-mono)",
-                fontSize: 14,
-                lineHeight: 22,
+                fontSize: settings["editor.fontSize"],
+                lineHeight: Math.round(settings["editor.fontSize"] * 1.6),
                 minimap: { enabled: false },
-                tabSize: 2,
+                tabSize: settings["editor.tabSize"],
                 scrollBeyondLastLine: false,
                 renderWhitespace: "none",
                 automaticLayout: true,
                 tabCompletion: "on",
-                wordWrap: "off",
+                wordWrap: settings["editor.wordWrap"],
                 bracketPairColorization: { enabled: true },
                 guides: { bracketPairs: true },
-                readOnly: tab === "pkg",
+                readOnly: !activeOpenDoc && tab === "pkg",
               }}
               onMount={mountEditor}
             />
@@ -792,8 +1022,15 @@ export const App: React.FC = () => {
             ktCode={files.kt}
             onBuildLog={(line) => termFeed.current?.({ text: line, kind: "out" })}
             onRun={(cmd) => void window.electronAPI?.claroTermSpawn?.({ cmd: [cmd] })}
+            onBuildAndRun={() => {
+              setShowPreview(true);
+              setActiveView("build");
+            }}
           />
-          <TerminalPanel feedRef={termFeed} />
+          <TerminalPanel feedRef={termFeed} fontFamily={settings["terminal.fontFamily"]} />
+        </section>
+        <section className={`view-slot${activeView === "settings" ? "" : " view-slot--hidden"}`}>
+          <SettingsView />
         </section>
         {showProblems && activeView === "explorer" && (
           <ProblemsPanel
@@ -843,6 +1080,10 @@ export const App: React.FC = () => {
             <Icon name="target" size={13} />
             <span>{selection ?? "—"}</span>
           </div>
+          <div className="statusbar__item" title={`${breakpoints.length} breakpoint(s) — F9 to toggle, Shift+F5 to clear`}>
+            <Icon name="issues" size={13} />
+            <span>{breakpoints.length}</span>
+          </div>
         </div>
         <div className="statusbar__spacer" />
         <div className="statusbar__group">
@@ -852,7 +1093,7 @@ export const App: React.FC = () => {
           </button>
           <div className="statusbar__item" title="Branch">
             <Icon name="git-branch" size={13} />
-            <span>agent-2/ide</span>
+            <span>{gitBranch}</span>
           </div>
           <div className="statusbar__item" title="Local-first, offline AI">
             <Icon name="lock" size={13} />
