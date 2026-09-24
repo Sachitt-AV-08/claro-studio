@@ -1,0 +1,99 @@
+:root {
+  --color-bg-deep: #0d0d12;
+  --color-bg-base: #14141a;
+  --color-bg-elevated: #1a1a24;
+  --color-bg-hover: #20202a;
+  --color-bg-active: #2a2a3a;
+
+  --color-border: #2a2a3a;
+  --color-border-focus: #2a7ade;
+  --color-border-subtle: #1e1e2a;
+
+  --color-fg-muted: #7a7a8a;
+  --color-fg-base: #c8c8d0;
+  --color-fg-strong: #e8e8f0;
+  --color-fg-inverse: #0d0d12;
+
+  --color-accent: #2a7ade;
+  --color-accent-soft: #1e3a5f;
+  --color-accent-muted: #1a2a3e;
+  --color-accent-glow: rgba(42, 122, 222, 0.15);
+
+  --color-success: #2ea043;
+  --color-success-soft: #1a3a22;
+  --color-warning: #d29922;
+  --color-warning-soft: #3a2a0a;
+  --color-error: #f85149;
+  --color-error-soft: #3a1a1a;
+
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-base: 13px;
+  --font-size-lg: 14px;
+  --font-size-xl: 16px;
+  --font-size-2xl: 20px;
+  --font-size-3xl: 24px;
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+
+  --line-height-tight: 1.3;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.6;
+
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 10px;
+  --space-6: 12px;
+  --space-8: 16px;
+  --space-10: 20px;
+  --space-12: 24px;
+  --space-16: 32px;
+  --space-20: 40px;
+  --space-24: 48px;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 9999px;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.45);
+  --shadow-focus: 0 0 0 2px var(--color-accent);
+  --shadow-glow: 0 0 24px var(--color-accent-glow);
+
+  --transition-fast: 80ms ease;
+  --transition-normal: 120ms ease;
+  --transition-slow: 200ms ease;
+
+  --z-dropdown: 100;
+  --z-modal: 200;
+  --z-tooltip: 300;
+  --z-toast: 400;
+  --z-command-palette: 500;
+
+  --pane-explorer-width: 280px;
+  --pane-explorer-min: 200px;
+  --pane-explorer-max: 400px;
+  --pane-preview-min: 360px;
+  --pane-bottom-height: 200px;
+  --pane-bottom-min: 120px;
+  --pane-bottom-max: 400px;
+  --activity-bar-width: 48px;
+  --titlebar-height: 36px;
+  --tab-bar-height: 36px;
+  --status-bar-height: 24px;
+  --splitter-size: 4px;
+  --splitter-hot-zone: 8px;
+
+  --grid-unit: 4px;
+}

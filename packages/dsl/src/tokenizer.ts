@@ -4,6 +4,7 @@ export type TokenType =
   | "string"
   | "number"
   | "color"
+  | "comment"
   | "lbrace"
   | "rbrace"
   | "lparen"
@@ -89,22 +90,34 @@ export function tokenize(raw: string): TokenizeResult {
       continue;
     }
 
-    // comments
+    // comments (`# note` and `// note`); `#hex…` stays a color literal
     if (c === "#") {
       const hexAhead = /^[0-9a-fA-F]{3,8}\b/.test(source.slice(i + 1, i + 10));
       if (hexAhead) {
         // color literal
+        const startI = i;
         const startLine = line, startCol = col;
         advance(); // '#'
         while (/[0-9a-fA-F]/.test(peek())) advance();
-        tokens.push({ type: "color", value: source.slice(startCol - 1, col - 1), line: startLine, col: startCol });
+        tokens.push({ type: "color", value: source.slice(startI, i), line: startLine, col: startCol });
         continue;
       }
-      while (peek() && peek() !== "\n") advance();
+      const startLine = line, startCol = col;
+      advance(); // '#'
+      // optional single space after '#', then the text
+      if (peek() === " ") advance();
+      let text = "";
+      while (peek() && peek() !== "\n") text += advance();
+      tokens.push({ type: "comment", value: text, line: startLine, col: startCol });
       continue;
     }
     if (c === "/" && peek(1) === "/") {
-      while (peek() && peek() !== "\n") advance();
+      const startLine = line, startCol = col;
+      advance(); advance(); // '//'
+      if (peek() === " ") advance();
+      let text = "";
+      while (peek() && peek() !== "\n") text += advance();
+      tokens.push({ type: "comment", value: text, line: startLine, col: startCol });
       continue;
     }
 

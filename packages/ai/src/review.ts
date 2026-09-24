@@ -11,7 +11,7 @@ import type {
   ReviewRuleKind,
   ReviewSeverity,
 } from "@project/contracts";
-import type { ModelProvider, PatchProposal } from "@project/contracts";
+import type { ModelProvider } from "@project/contracts";
 import { schemaFor } from "@project/contracts";
 import { buildContext } from "./intent.js";
 import type { PatchOp } from "@project/contracts";

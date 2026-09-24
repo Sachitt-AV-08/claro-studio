@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { parse, format, formatSource, applyOps, applyOp, suggestions, tokenize } from "../src/index.js";
-import { nodeById } from "@project/contracts";
+import { nodeById, getLanguageKnowledge, ELEMENTS, SYNONYMS } from "@project/contracts";
 
 const CANON = `page Home {
     section Hero {
@@ -248,6 +248,57 @@ describe("patches", () => {
   });
 });
 
+describe("comment preservation (comment-as-idea)", () => {
+  const WITH_COMMENTS = `# top of file
+page Home {
+    // hero is the first fold
+    section Hero {
+        layout: stack
+        # pitch the product here
+        heading "Build differently"
+        button primary "Get Started" // trailing note
+    }
+}
+`;
+
+  it("captures comments as trivia, never drops them", () => {
+    const p = parse(WITH_COMMENTS);
+    const all: string[] = [...(p.comments ?? []).map((c) => c.text)];
+    const walk = (n: { comments?: { text: string }[]; tailComments?: { text: string }[]; children?: unknown[] }) => {
+      for (const c of [...(n.comments ?? []), ...(n.tailComments ?? [])]) all.push(c.text);
+      for (const c of (n.children ?? []) as { comments?: { text: string }[]; tailComments?: { text: string }[]; children?: unknown[] }[]) walk(c);
+    };
+    p.pages.forEach(walk);
+    expect(all).toContain("top of file");
+    expect(all).toContain("hero is the first fold");
+    expect(all).toContain("pitch the product here");
+    expect(all).toContain("trailing note");
+  });
+
+  it("formatting normalizes but keeps content byte-true", () => {
+    const out = formatSource(WITH_COMMENTS);
+    expect(out).toContain("# Top of file");
+    expect(out).toContain("# Hero is the first fold");
+    expect(out).toContain("# Pitch the product here");
+    expect(out).toContain("# Trailing note");
+  });
+
+  it("format() never drops comments (round-trip is monotonic)", () => {
+    const once = formatSource(WITH_COMMENTS);
+    const twice = formatSource(once);
+    expect(twice).toBe(once);
+    const count = (s: string) => (s.match(/^\s*#/gm) ?? []).length;
+    expect(count(twice)).toBeGreaterThanOrEqual(4);
+    expect(count(twice)).toBe(count(once));
+  });
+
+  it("#hex is still a color, not a comment", () => {
+    const p = formatSource(`page Home { section s { background: #aabbcc } }`);
+    expect(p).toContain("background: #aabbcc");
+    expect(p).not.toContain("# Aabbcc");
+  });
+});
+
 describe("tokenizer & suggestions", () => {
   it("tolerates optional semicolons", () => {
     const { tokens } = tokenize(`gap: 24; align: center;`);
@@ -262,6 +313,39 @@ describe("tokenizer & suggestions", () => {
   it("suggests close candidates", () => {
     expect(suggestions("pxxading", Object.keys({ padding: 1, margin: 2 }))).toContain("padding");
     expect(suggestions("buton", ["button", "badge", "spacer"])).toContain("button");
+  });
+});
+
+describe("getLanguageKnowledge (single source of truth)", () => {
+  it("is exhaustive against dsl-schema.ts", () => {
+    const k = getLanguageKnowledge();
+    const elementTypes = k.elements.map((e) => e.type);
+    expect(elementTypes.sort()).toEqual(Object.keys(ELEMENTS).sort());
+    for (const e of k.elements) {
+      for (const p of e.props) {
+        expect(Object.keys(ELEMENTS[e.type].props)).toContain(p.name);
+      }
+    }
+    for (const [syn] of Object.entries(SYNONYMS)) expect(k.synonyms[syn]).toBe(SYNONYMS[syn]);
+  });
+
+  it("covers units, enums, layouts, and PatchOps", () => {
+    const k = getLanguageKnowledge();
+    expect(k.units).toContain("fr");
+    expect(k.layouts).toEqual(["stack", "row", "grid", "overlay"]);
+    expect(k.enums["button.variant"]).toContain("ghost");
+    const ops = k.patchOps.map((o) => o.op);
+    expect(ops).toContain("set_property");
+    expect(ops).toContain("set_layout");
+    expect(ops).toContain("add_element");
+  });
+
+  it("is exhaustive and parseable by typecheck (blurb present)", () => {
+    const k = getLanguageKnowledge();
+    expect(k.name).toBe("Claro");
+    expect(k.extension).toBe(".cl");
+    expect(k.blurb.length).toBeGreaterThan(50);
+    expect(k.valueTypes.map((v) => v.type)).toEqual(["number", "string", "color", "boolean", "enum", "ref", "list"]);
   });
 });
 

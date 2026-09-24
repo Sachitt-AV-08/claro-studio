@@ -17,7 +17,7 @@ the preview updates the source (through patch ops, see `contracts/src/patches.ts
 | `component` | `component Hero(title: string, cta: string) { ... }` | Reusable composable | Params only; no state/logic |
 | `@param` | `heading @title` | Reference a param in a body | Component bodies only |
 | `name` | `button primary "Go"` | Give an element a name (id segment) | Must be unique in scope (auto `:n` otherwise) |
-| comment | `// note` and `# note` | Inline explanation | Stripped on format; `#hex…` is a color, not a comment |
+| comment | `// note` and `# note` | Inline explanation | Preserved on format; `#hex…` is a color, not a comment |
 
 Example:
 

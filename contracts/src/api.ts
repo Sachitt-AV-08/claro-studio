@@ -1,5 +1,5 @@
 import type { MetricsSnapshot } from "./metrics.js";
-import type { ModelStatus, PatchProposal, ProjectContext } from "./ai.js";
+import type { ModelStatus, PatchProposal } from "./ai.js";
 import type { ReviewResult } from "./review.js";
 import type { Project } from "./ast.js";
 

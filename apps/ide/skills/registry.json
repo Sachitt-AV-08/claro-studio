@@ -1,0 +1,49 @@
+{
+  "extensions": [
+    {
+      "id": "bhasm",
+      "name": "BHASM",
+      "version": "0.1.0",
+      "description": "Opencode-style agent + typed tools + skills. Local-first, offline, reversible — it only ever proposes PatchOps.",
+      "author": "CLARO",
+      "category": "ai",
+      "installed": true
+    },
+    {
+      "id": "claro-terminal",
+      "name": "CLARO Terminal",
+      "version": "0.1.0",
+      "description": "ConPTY bridge over claro:term:* — spawn a shell or a built EXE by argv, and stream its stdout live into the terminal feed. Offline, Windows-native, no node-pty.",
+      "author": "CLARO",
+      "category": "terminal",
+      "installed": true
+    },
+    {
+      "id": "claro-design-system",
+      "name": "Claro Design System",
+      "version": "0.1.0",
+      "description": "Prefer compact, reversible UI patterns for Claro projects. Button variants, card patterns, spacing, typography conventions.",
+      "author": "CLARO",
+      "category": "design",
+      "installed": true
+    },
+    {
+      "id": "git-tools",
+      "name": "Git Tools",
+      "version": "0.1.0",
+      "description": "Git status, log, diff, commit, push from the terminal toolbar. Branch status in statusbar.",
+      "author": "CLARO",
+      "category": "git",
+      "installed": false
+    },
+    {
+      "id": "debug-tools",
+      "name": "Debug Tools",
+      "version": "0.1.0",
+      "description": "Breakpoints, variable inspection, console.log inspection, debugger statement support in Monaco.",
+      "author": "CLARO",
+      "category": "debug",
+      "installed": false
+    }
+  ]
+}

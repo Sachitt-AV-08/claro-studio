@@ -1,0 +1,7 @@
+# Vendored electron-builder runtime for the App Packaging feature.
+# Regenerated on demand via `npm run vendor:builder` (predev/prebuild).
+vendor/node_modules/
+
+release/
+dist/
+dist-electron/

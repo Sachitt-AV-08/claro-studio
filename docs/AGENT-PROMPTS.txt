@@ -1,0 +1,94 @@
+CLARO STUDIO — AGENT PROMPTS
+=============================
+
+Short task briefs for every agent so work can advance in parallel.
+Read the docs: docs/CONTRACTS.md, docs/reference.md, docs/AGENT3.md, docs/BHASM.md.
+Non-negotiables for ALL agents: reversibility, offline-only AI, strict types,
+typecheck green, small and boring first, PR to your branch never force-push.
+
+----------------------------------------------------------------------------
+AGENT 1 — DSL (branch: agent-1/dsl, lane: packages/dsl)
+----------------------------------------------------------------------------
+Current state: tokenizer, parser, formatter, patch engine exist and are solid.
+
+Tasks (priority order):
+1. COMMENT PRESERVATION (BLOCKER for comment-as-idea)
+   - The tokenizer currently skips comments (tokenizer.ts ~93-105) and the
+     formatter only emits AST (formatter.ts), so # ideas are erased on every
+     reformat. Add comment trivia nodes to the AST and emit them in format().
+   - Keep the rule: `#hex...` is a color, not a comment. `#` followed by space
+     (or `//` alias) is a comment. Multi-line block comments optional in v1.
+2. SINGLE SOURCE OF TRUTH for language knowledge
+   - Export getLanguageKnowledge() from contracts/dsl-schema.ts: all elements,
+     props + types + units + enums + synonyms + doc blurb + PatchOp vocabulary.
+     Used by the IDE editor, BHASM skill generation, and Agent 3/4 so nothing drifts.
+3. Canonical comment normalization in format(): strip trailing space, uppercase
+   first letter, keep content byte-true otherwise.
+
+Acceptance: format() never drops comments; getLanguageKnowledge() is exhaustive
+against dsl-schema.ts; tests cover both; typecheck green.
+
+Coordination: Agent 2 ships comment-as-idea directly on your trunk.
+
+----------------------------------------------------------------------------
+AGENT 3 — AI (branch: agent-3/ai, lane: packages/ai)
+----------------------------------------------------------------------------
+Current state: ollama.ts, intent.ts, toPatch.ts, review.ts exist; wired offline
+to Ollama qwen2.5:3b at localhost:11434. The IDE currently calls a STUB
+(apps/ide/src/ai/localAi.ts) — see "Wiring" below.
+
+Tasks (priority order):
+1. STREAMING ASK() — add ask(history, {stream}) to ollama.ts returning tokens
+   as they arrive (SSE-style /api/chat). Keep a non-stream fallback.
+2. LANGUAGE GROUNDING — replace the shallow ELEMENT_LIST prompt hint with the
+   full getLanguageKnowledge() content (from Agent 1). Build prompts coherently:
+   grammar, elements, props, units, enums, synonyms, PatchOp list, 2 worked examples.
+3. PATCH VALIDITY RETRY — formalize tryPatchWithRetry(): validateOps/applyOps
+   dry-run, one grammar-grounded retry, then { ok:false, reason }. Export for AI.
+4. EVAL HARNESS — a score for "BHASM knows the language": N canned sentences,
+   each must produce an applyOps-accepted patch. Target >= 90%. Publish number.
+5. MULTI-LANGUAGE EDIT — describe/add a text-file rewrite op (any language) that
+   returns a replacement snippet the IDE can preview in a Stitch diff before applying.
+6. IDEAS CONTEXT — accept project # comments (ideas) and fold into system context.
+
+WIRING INSTRUCTION (Agent 2 + Agent 3): delete apps/ide/src/ai/localAi.ts stub,
+wire package @claro/ai through a thin adapter apps/ide/src/bhasm/runtime.ts
+(Agent 2 owns the file, you own the contract). Health gating in the status bar.
+
+Acceptance: streaming ask works offline; eval >= 90%; review findings still link
+to corrective PatchOps; typecheck green.
+
+Coordination: Your propose_patch/describe_patch outputs are displayed in Agent 2's
+Stitch view; keep the PatchOp contract exactly as contracts/src/patches.ts defines.
+
+----------------------------------------------------------------------------
+AGENT 4 — ANDROID (branch: agent-4/android-components, lane: packages/android)
+----------------------------------------------------------------------------
+Current state: empty (packages/android/src/index.ts is a noop). Greenfield.
+
+Tasks (priority order):
+1. CONTRACT — packages/android/src/contract.ts: Claro DslProject -> Android
+   mapping. Element -> View/Composable mapping table, prop -> attribute mapping,
+   units -> dp/sp, color -> @color, layout -> LayoutManager/Column/Row/Box.
+2. CODEGEN — packages/android/src/generate.ts: DslProject -> Kotlin Compose file
+   (single-file renderer, deterministic, idempotent where possible). Include a
+   ComponentRegistry mapping claro component names to composables.
+3. EXPORT PATH — expose buildAndroid(project): string; the IDE Export menu calls
+   it to drop a .kt file (hook comes in a later Agent 2 milestone).
+4. TESTS — parity tests: same project rendered to HTML (packages/dsl) and to
+   Kotlin should agree on structure (element order, text, nesting).
+5. docs/ANDROID.md — mapping reference + example.
+
+Acceptance: generate.ts emits compilable-looking Kotlin Compose for every element
+in reference.md; structure parity test green; typecheck green.
+
+Coordination: You consume exactly the contracts AST (contracts/src/ast.ts) and
+the element list from contracts/src/dsl-schema.ts. Do not extend the language.
+
+==================================================================
+COMMON ACCEPTANCE
+==================================================================
+- npm run typecheck green at repo root.
+- npm run test green (vitest, keep --passWithNoTests viable per lane).
+- Never break contracts; never force-push; PR instead.
+- Docs you touch get updated in the same commit.

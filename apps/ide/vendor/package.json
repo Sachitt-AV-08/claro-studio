@@ -1,0 +1,6 @@
+{
+  "name": "claro-ide-vendor-builder",
+  "private": true,
+  "version": "24.13.3",
+  "description": "Vendored electron-builder used at runtime by the App Packaging feature."
+}

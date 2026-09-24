@@ -5,6 +5,7 @@ import {
   type PropValue,
   type ComponentParam,
   type SourceRange,
+  type CommentNode,
   schemaFor,
   canonicalType,
   SYNONYMS,
@@ -104,7 +105,15 @@ export class Parser {
         range: { start: { line: e.line, col: e.col }, end: { line: e.line, col: e.col + 1 }, text: "" },
       });
     }
-    const p = iter(tokens);
+    const comments: CommentNode[] = [];
+    const code = tokens.filter((t) => {
+      if (t.type === "comment") {
+        comments.push({ text: t.value, line: t.line });
+        return false;
+      }
+      return true;
+    });
+    const p = iter(code);
     const pages: DslNode[] = [];
     const components: DslNode[] = [];
     let implicit: DslNode | null = null;
@@ -141,8 +150,60 @@ export class Parser {
     }
 
     const project: Project = { meta: { version: "1.0", fileType: ".cl" }, pages, components, diagnostics: this.dedup() };
+    this.attachComments(project, comments);
     assignIds([...pages, ...components]);
     return project;
+  }
+
+  /**
+   * Attach comment trivia structurally so the formatter can emit them at depth
+   * and never drop them. Every comment is anchored to exactly one emission slot:
+   *  - lead: the statement it immediately precedes (node.comments)
+   *  - tail: the last statement inside the enclosing body before its `}`
+   *          (node.tailComments)
+   *  - file: before any statement (project.comments)
+   * Anchoring is by body extent (element lines), which survives a format
+   * round-trip, so format(format(x)) === format(x) holds.
+   */
+  private attachComments(project: Project, comments: CommentNode[]): void {
+    if (comments.length === 0) return;
+
+    interface Stmt { node: DslNode; start: number; end: number; depth: number }
+    const stmts: Stmt[] = [];
+    const walk = (n: DslNode, depth: number) => {
+      stmts.push({ node: n, start: n.source.start.line, end: n.source.end.line, depth });
+      for (const c of n.children) walk(c, depth + 1);
+    };
+    for (const p of project.pages) walk(p, 0);
+    for (const c of project.components) walk(c, 0);
+
+    for (const c of comments) {
+      // deepest statement whose body contains the comment line
+      let container: Stmt | undefined;
+      for (const s of stmts) {
+        if (c.line > s.start && c.line <= s.end && s.depth >= (container?.depth ?? -1)) container = s;
+      }
+      if (!container) {
+        (project.comments ??= []).push(c);
+        continue;
+      }
+      // first child after the comment -> lead comment on that child
+      let target: DslNode | undefined;
+      for (const child of container.node.children) {
+        if (child.source.start.line > c.line) { target = child; break; }
+      }
+      if (target) (target.comments ??= []).push(c);
+      else (container.node.tailComments ??= []).push(c);
+    }
+
+    const sortComments = (n: DslNode) => {
+      n.comments?.sort((a, b) => a.line - b.line);
+      n.tailComments?.sort((a, b) => a.line - b.line);
+      for (const c of n.children) sortComments(c);
+    };
+    for (const p of project.pages) sortComments(p);
+    for (const c of project.components) sortComments(c);
+    project.comments?.sort((a, b) => a.line - b.line);
   }
 
   private barePage(name: string): DslNode {
@@ -212,7 +273,7 @@ export class Parser {
     return params;
   }
 
-  private ensureLbrace(p: TokIter, fallback: SourceRange, what: string): void {
+  private ensureLbrace(p: TokIter, _fallback: SourceRange, what: string): void {
     if (peek(p).type === "lbrace") {
       next(p);
       return;
@@ -268,7 +329,11 @@ export class Parser {
         if (p.i === before) next(p); // never stall
       }
     }
-    if (peek(p).type === "rbrace") next(p);
+    if (peek(p).type === "rbrace") {
+      const close = next(p);
+      // record the body extent so comments can be re-interleaved structurally
+      node.source = { ...node.source, end: { line: close.line, col: close.col + 1 } };
+    }
   }
 
   private elementStarts(p: TokIter, off: number): boolean {
@@ -309,8 +374,9 @@ export class Parser {
     if (peek(p).type === "lbrace") {
       next(p);
       this.parseBody(p, node);
+    } else {
+      node.source = rangeOf(t);
     }
-    node.source = rangeOf(t);
     this.validateNode(node);
     return node;
   }

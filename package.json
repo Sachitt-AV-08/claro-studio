@@ -11,14 +11,18 @@
   ],
   "scripts": {
     "verify": "node scripts/verify.mjs",
-    "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present",
+    "dev": "npm run dev --workspace=apps/ide",
+    "dev:ide": "npm run dev --workspace @project/ide",
     "build": "npm run build --workspaces --if-present",
-    "dev:ide": "npm run dev --workspace @project/ide"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   }
 }

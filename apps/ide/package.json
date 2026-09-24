@@ -1,7 +1,40 @@
 {
-  "name": "@project/ide",
-  "version": "0.1.0",
+  "name": "@claro/ide",
+  "version": "0.0.0",
   "private": true,
-  "type": "module",
-  "description": "CLARO Studio renderer: Electron + Vite + React + Monaco. Owned by Agent 2."
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "concurrently -k \"npm run dev:vite\" \"npm run dev:electron\"",
+    "dev:vite": "vite",
+    "dev:electron": "cross-env NODE_ENV=development electron .",
+    "predev:electron": "npm run vendor:builder",
+    "build": "npm run vendor:builder && npm run build:vite && npm run build:electron",
+    "build:vite": "vite build",
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "vendor:builder": "node scripts/vendor-builder.mjs",
+    "dist": "npm run build && electron-builder --win --dir",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "lint": "eslint src --ext ts,tsx"
+  },
+  "dependencies": {
+    "@monaco-editor/react": "^4.6.0",
+    "monaco-editor": "^0.47.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "zustand": "^4.5.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.2.0",
+    "concurrently": "^8.2.0",
+    "cross-env": "^7.0.0",
+    "electron": "^29.4.6",
+    "electron-builder": "^26.15.3",
+    "typescript": "^5.4.0",
+    "vite": "^5.1.0",
+    "vite-plugin-monaco-editor": "^1.1.0",
+    "vitest": "^1.3.0"
+  }
 }

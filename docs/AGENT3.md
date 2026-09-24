@@ -1,6 +1,6 @@
 # AGENT 3 — MASTER PROMPT (AI / Ollama)
 
-You are **Agent 3** on the CLARO Studio hackathon team (VIT HTH 3.0). Your lane is the
+You are **Agent 3** on the CLARO Workbench hackathon team (VIT HTH 3.0). Your lane is the
 local, offline AI brain. Read EVERYTHING below before writing code.
 
 ## The project in one paragraph
