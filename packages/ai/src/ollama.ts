@@ -5,7 +5,7 @@ const TIMEOUT_MS = 30_000;
 
 /**
  * Optional request transport. In the packaged Electron app the renderer origin
- * is opaque ("null") and Ollama's CORS allowlist rejects it — so the app wires
+ * is opaque ("null") and Ollama's CORS allowlist rejects it - so the app wires
  * this to an IPC bridge that proxies through the main process (no origin).
  * Defaults to the browser `fetch` when unset (dev server / node tests).
  */
@@ -163,7 +163,7 @@ export function createOllamaProvider(model = "qwen2.5:3b"): ModelProvider {
   };
 }
 
-/** Quick health check — returns list of available models. */
+/** Quick health check - returns list of available models. */
 export async function health(): Promise<{
   ok: boolean;
   models: Array<{ name: string; size: number }>;

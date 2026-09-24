@@ -1,5 +1,5 @@
 /**
- * Bhasm — the AI brain of CLARO Workbench.
+ * Bhasm - the AI brain of CLARO Workbench.
  *
  * High-level integration API for the IDE. This is the primary surface
  * the editor calls. It wraps all low-level AI logic behind a simple,
@@ -34,10 +34,10 @@ export interface Bhasm {
   /** Get current model status. */
   status(): Promise<ModelStatus>;
 
-  /** Natural language → PatchOp list. e.g. "make it red" */
+  /** Natural language  PatchOp list. e.g. "make it red" */
   proposePatch(instruction: string, project: Project): Promise<PatchProposal>;
 
-  /** Diff → minimal PatchOps. Given intended + current DSL source. */
+  /** Diff  minimal PatchOps. Given intended + current DSL source. */
   describePatch(
     intendedSource: string,
     currentSource: string,
