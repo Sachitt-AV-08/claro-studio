@@ -12,7 +12,8 @@
     "build:vite": "vite build",
     "build:electron": "tsc -p tsconfig.electron.json",
     "vendor:builder": "node scripts/vendor-builder.mjs",
-    "dist": "npm run build && electron-builder --win --dir",
+    "dist": "npm run build && electron-builder --win",
+    "dist:dir": "npm run build && electron-builder --win --dir",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "lint": "eslint src --ext ts,tsx"

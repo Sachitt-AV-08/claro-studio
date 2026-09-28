@@ -11,7 +11,7 @@ export interface RouteInfo {
   choice: string;
   probability: number;
   step: LadderStep;
-  provider: "local" | "fallback";
+  provider: "local" | "fallback" | "embed" | "gate";
 }
 
 export interface GuardrailInfo {
@@ -19,7 +19,7 @@ export interface GuardrailInfo {
   probability: number;
   step: LadderStep;
   reason?: string;
-  provider: "local" | "fallback";
+  provider: "local" | "fallback" | "embed" | "gate";
 }
 
 interface DecisionState {

@@ -17,10 +17,13 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@project/ai": ["../../packages/ai/src"],
+      "@project/contracts": ["../../contracts/src"],
+      "@project/dsl": ["../../packages/dsl/src"]
     }
   },
-  "include": ["src", "vite.config.ts"],
-  "exclude": ["node_modules", "dist", "dist-electron", "../../packages/**"],
+  "include": ["src", "vite.config.ts", "../../packages/**/*"],
+  "exclude": ["node_modules", "dist", "dist-electron"],
   "references": [{ "path": "./tsconfig.electron.json" }]
 }

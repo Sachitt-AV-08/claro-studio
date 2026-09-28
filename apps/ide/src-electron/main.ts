@@ -1,6 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, protocol, shell } from 'electron';
 import { join, extname, basename } from 'path';
-import { readFileSync, readdirSync, statSync, mkdirSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, readdirSync, statSync, mkdirSync, writeFileSync, existsSync, linkSync, copyFileSync, mkdtempSync } from 'fs';
 import os from 'os';
 import { spawn, spawnSync } from 'child_process';
 import { isDev } from './util.js';
@@ -499,7 +499,7 @@ function appIconPath(): string {
 
 // The IDE ships inside a full Electron distribution:
 //   dev:      apps/ide/node_modules/electron/dist/electron.exe
-//   packaged: <exe-dir>/release/win-unpacked/electron.exe
+//   packaged: <exe-dir>/unpacked/electron.exe
 // We reuse that dist for built apps so packaging works fully offline.
 function resolveElectronDist(): string {
   const candidates = isDev()
@@ -508,7 +508,43 @@ function resolveElectronDist(): string {
   for (const p of candidates) {
     if (existsSync(join(p, 'electron.exe'))) return p;
   }
+  // Packaged installs renamed the binary to the product name. electron-builder
+  // still wants a dir containing `electron.exe`, so synthesize one from the
+  // running app's own files with NTFS hard links (near-zero cost, same volume).
+  for (const p of candidates) {
+    if (!existsSync(p)) continue;
+    const exe = readdirSync(p).find((f) => /\.exe$/i.test(f));
+    if (exe && existsSync(join(p, 'resources'))) {
+      const tmp = mkdtempSync(join(os.tmpdir(), 'claro-eb-dist-'));
+      try {
+        hardlinkTree(p, tmp, exe);
+        return tmp;
+      } catch {
+        continue;
+      }
+    }
+  }
   return '';
+}
+
+// Recursively hard-link the app dir into a scratch dist, renaming the product
+// exe back to electron.exe. Falls back to a byte copy if a link fails.
+function hardlinkTree(src: string, dst: string, exeName: string): void {
+  for (const entry of readdirSync(src)) {
+    const from = join(src, entry);
+    const to = join(dst, entry === exeName ? 'electron.exe' : entry);
+    const st = statSync(from);
+    if (st.isDirectory()) {
+      mkdirSync(to, { recursive: true });
+      hardlinkTree(from, to, '');
+    } else if (st.isFile()) {
+      try {
+        linkSync(from, to);
+      } catch {
+        copyFileSync(from, to);
+      }
+    }
+  }
 }
 
 function slugify(s: string): string {

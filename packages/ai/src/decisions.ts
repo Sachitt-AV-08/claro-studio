@@ -11,6 +11,7 @@
  */
 
 import type { ModelProvider } from "@project/contracts";
+import { createOllamaEmbedder, cosine, type Embedder } from "./embeddings.js";
 
 export type DecisionTask = "route" | "classify" | "guardrail";
 
@@ -38,7 +39,7 @@ export interface DecisionResult {
   /** true only when the model returned schema-valid JSON + a real choice */
   valid: boolean;
   reason?: string;
-  provider: "local" | "fallback";
+  provider: "local" | "fallback" | "embed" | "gate";
   latencyMs: number;
 }
 
@@ -172,6 +173,152 @@ export function createOllamaDecisionLayer(
         provider: "local",
         latencyMs: Date.now() - start,
       };
+    },
+  };
+}
+
+/**
+ * Claro Gate — the JEV-style cost gate.
+ *
+ * A tiny embedding classifier that decides whether a prompt needs the
+ * expensive 3B reasoning model at all. Built on nomic-embed-text:
+ * prototypes are centroids from labeled examples we already own
+ * (heuristicHint regexes + isConversational + mode semantics).
+ * Zero training run; pure cosine margin.
+ */
+export interface GateResult {
+  needsDeep: boolean;
+  score: number;        // cosine margin: positive → deep, negative → simple
+  provider: "embed" | "fallback";
+  latencyMs: number;
+}
+
+export interface GateConfig {
+  /** embedding model (default: nomic-embed-text) */
+  model?: string;
+  /** cosine margin; >0 = deep, <0 = simple (default 0.05) */
+  margin?: number;
+  /** injected embedder for testing */
+  embedder?: Embedder;
+}
+
+/** Labeled examples that seed the simple/deep centroids. */
+interface GateLabel {
+  text: string;
+  kind: "simple" | "deep";
+}
+
+/** Heuristic labels we already trust → build prototypes offline at module load. */
+const GATE_LABELS: GateLabel[] = [
+  // Conversational / simple
+  { text: "hi", kind: "simple" },
+  { text: "hello", kind: "simple" },
+  { text: "hey", kind: "simple" },
+  { text: "thanks", kind: "simple" },
+  { text: "thank you", kind: "simple" },
+  { text: "what can you do", kind: "simple" },
+  { text: "help", kind: "simple" },
+  { text: "ok", kind: "simple" },
+  { text: "nice", kind: "simple" },
+  { text: "cool", kind: "simple" },
+  // isConversational catches these
+  // heuristicHint simple cases
+  { text: "where is the button used", kind: "simple" },
+  { text: "show me the component structure", kind: "simple" },
+  { text: "query the graph for usage", kind: "simple" },
+  { text: "graph stats", kind: "simple" },
+  // mode: ask (grounded questions)
+  { text: "explain this component", kind: "simple" },
+  { text: "what does the hero do", kind: "simple" },
+  { text: "how does the nav work", kind: "simple" },
+  // simple patches (heuristicHint proposes_patch but clear intent)
+  { text: "make the button red", kind: "deep" },
+  { text: "add a hero section", kind: "deep" },
+  { text: "change the header color", kind: "deep" },
+  // deep / reasoning needed
+  { text: "review the project for problems", kind: "deep" },
+  { text: "find all accessibility issues", kind: "deep" },
+  { text: "audit the code for performance", kind: "deep" },
+  { text: "refactor the component hierarchy", kind: "deep" },
+  { text: "redesign the layout", kind: "deep" },
+  { text: "improve the design system", kind: "deep" },
+  { text: "cross-file risk analysis", kind: "deep" },
+  { text: "security review", kind: "deep" },
+];
+
+// Build centroids at load time (pure cosine on embeddings; no model call yet).
+// These will be hydrated lazily on first use with real embeddings.
+let simpleCentroid: number[] | null = null;
+let deepCentroid: number[] | null = null;
+let centroidsReady = false;
+
+async function ensureCentroids(embedder: Embedder): Promise<void> {
+  if (centroidsReady) return;
+  const simpleTexts = GATE_LABELS.filter((l) => l.kind === "simple").map((l) => l.text);
+  const deepTexts = GATE_LABELS.filter((l) => l.kind === "deep").map((l) => l.text);
+  const [simpleVecs, deepVecs] = await Promise.all([
+    embedder.embed(simpleTexts),
+    embedder.embed(deepTexts),
+  ]);
+  simpleCentroid = meanVector(simpleVecs);
+  deepCentroid = meanVector(deepVecs);
+  centroidsReady = true;
+}
+
+function meanVector(vecs: number[][]): number[] {
+  if (!vecs.length) return [];
+  const dim = vecs[0].length;
+  const sum = new Array(dim).fill(0);
+  for (const v of vecs) {
+    for (let i = 0; i < dim; i++) sum[i] += v[i];
+  }
+  return sum.map((x) => x / vecs.length);
+}
+
+/**
+ * Create a Claro Gate instance.
+ * Lazy hydrates centroids on first call; returns fallback if embedder unavailable.
+ */
+export function createClaroGate(cfg: GateConfig = {}): {
+  gateReasoning: (input: string) => Promise<GateResult>;
+} {
+  let embedder: Embedder | undefined = cfg.embedder;
+  let margin = cfg.margin ?? 0.05;
+  let model = cfg.model ?? "nomic-embed-text";
+  let hydrated = false;
+
+  return {
+    async gateReasoning(input: string): Promise<GateResult> {
+      const start = Date.now();
+      try {
+        if (!embedder) {
+          embedder = createOllamaEmbedder(model);
+          const ok = await embedder.isInstalled();
+          if (!ok) throw new Error(`embed model ${model} not installed`);
+        }
+        if (!hydrated) {
+          await ensureCentroids(embedder);
+          hydrated = true;
+        }
+        const [inputVec] = await embedder.embed([input]);
+        const simSimple = cosine(inputVec, simpleCentroid!);
+        const simDeep = cosine(inputVec, deepCentroid!);
+        const score = simDeep - simSimple; // positive → deep
+        return {
+          needsDeep: score >= margin,
+          score,
+          provider: "embed",
+          latencyMs: Date.now() - start,
+        };
+      } catch {
+        // Embedder down or model missing → safe default: escalate to deep.
+        return {
+          needsDeep: true,
+          score: 0,
+          provider: "fallback",
+          latencyMs: Date.now() - start,
+        };
+      }
     },
   };
 }

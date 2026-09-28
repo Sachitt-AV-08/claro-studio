@@ -10,12 +10,17 @@ export { proposeIntent, buildContext } from "./intent.js";
 export { describeToPatch } from "./toPatch.js";
 export { reviewProject } from "./review.js";
 
+// Embeddings (Claro Gate / embedding prior)
+export { createOllamaEmbedder, cosine, setEmbedTransport } from "./embeddings.js";
+export type { Embedder } from "./embeddings.js";
+
 // Decision layer (JEV-style routing/guardrail built on the local model)
 export {
   createOllamaDecisionLayer,
   ladderStep,
   DEFAULT_ACT_THRESHOLD,
   DEFAULT_ASK_THRESHOLD,
+  createClaroGate,
 } from "./decisions.js";
 export type {
   DecisionLayer,
@@ -25,6 +30,8 @@ export type {
   DecisionChoice,
   DecisionTask,
   LadderStep,
+  GateResult,
+  GateConfig,
 } from "./decisions.js";
 
 // Prompts (for customization)

@@ -10,6 +10,10 @@
 export interface DecisionConfig {
   /** Ollama model used for routing/guardrail decisions */
   model: string;
+  /** Embedding model for Claro Gate / embedding prior (default: nomic-embed-text) */
+  embedModel?: string;
+  /** Gate margin for Claro Gate (default: 0.05) */
+  gateMargin?: number;
   /** confidence ≥ act → caller should act autonomously */
   act: number;
   /** confidence ≥ ask → caller should escalate (else fallback path) */
@@ -32,18 +36,22 @@ export interface BhasmGraphSettings {
 export const DEFAULT_BHASM_GRAPH: BhasmGraphSettings = {
   autoStart: true,
   graphAssist: true,
-  decision: { model: "qwen2.5:3b", act: 0.9, ask: 0.6 },
+  decision: { model: "qwen2.5:3b", embedModel: "nomic-embed-text", gateMargin: 0.05, act: 0.9, ask: 0.6 },
 };
 
 const api = () => (typeof window !== "undefined" ? window.electronAPI : undefined);
 
-const readNum = (v: unknown, fallback: number): number =>
-  typeof v === "number" && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : fallback;
+function readNum(v: unknown, fallback: number): number {
+  if (typeof v === "number" && Number.isFinite(v)) {
+    return Math.min(1, Math.max(0, v));
+  }
+  return fallback;
+}
 
 function mergeDecision(saved: Record<string, unknown> | undefined): DecisionConfig {
   const d = (saved?.decision ?? {}) as Record<string, unknown>;
-  let act = readNum(d.act, DEFAULT_BHASM_GRAPH.decision.act);
-  let ask = readNum(d.ask, DEFAULT_BHASM_GRAPH.decision.ask);
+  let act = readNum(d.act, DEFAULT_BHASM_GRAPH.decision.act) as number;
+  let ask = readNum(d.ask, DEFAULT_BHASM_GRAPH.decision.ask) as number;
   if (act < ask) {
     const tmp = act;
     act = ask;
@@ -51,6 +59,12 @@ function mergeDecision(saved: Record<string, unknown> | undefined): DecisionConf
   }
   return {
     model: typeof d.model === "string" && d.model ? d.model : DEFAULT_BHASM_GRAPH.decision.model,
+    embedModel: typeof d.embedModel === "string" && d.embedModel ? d.embedModel : DEFAULT_BHASM_GRAPH.decision.embedModel,
+    gateMargin: (() => {
+      const v = d.gateMargin;
+      if (typeof v === "number" && Number.isFinite(v)) return Math.min(1, Math.max(0, v));
+      return DEFAULT_BHASM_GRAPH.decision.gateMargin;
+    })(),
     act,
     ask,
   };

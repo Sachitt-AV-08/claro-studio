@@ -7,6 +7,7 @@ import { skills } from "../bhasm/skills";
 import { Icon, type IconName } from "../components/Icon";
 import { useMcpStore } from "../graph/mcpStore";
 import { useDecisionStore } from "../bhasm/decisionStore";
+import { useMetricsStore, edgeMetrics } from "../bhasm/metricsStore";
 import { classifySeed } from "../bhasm/decisions";
 
 interface PanelProps {
@@ -95,6 +96,7 @@ export const BhasmPanel: React.FC<PanelProps> = ({ onToggle, height }) => {
   const mcpStatus = useMcpStore((s) => s.status);
   const lastRoute = useDecisionStore((s) => s.lastRoute);
   const lastGuardrail = useDecisionStore((s) => s.lastGuardrail);
+  const metricsVersion = useMetricsStore((s) => s.id);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -310,6 +312,8 @@ export const BhasmPanel: React.FC<PanelProps> = ({ onToggle, height }) => {
         </button>
       </header>
 
+      <EdgeAIMetrics key={metricsVersion} />     
+
       <div className="ai__body" ref={scrollerRef}>
         {thread.length === 0 && (
           <div className="ai__empty">
@@ -436,6 +440,32 @@ export const BhasmPanel: React.FC<PanelProps> = ({ onToggle, height }) => {
         <div className="ai__hint">Enter to run · Shift+Enter for newline · reversibility is sacred</div>
       </footer>
     </section>
+  );
+};
+
+/** Live Edge-AI strip: how many decisions never woke the 3B model. */
+const EdgeAIMetrics: React.FC = () => {
+  const m = edgeMetrics();
+  if (m.total === 0) return null;
+  const pct = Math.round(m.skippedRate * 100);
+  const latency = m.avgLatencyMs < 100 ? `${Math.round(m.avgLatencyMs)}ms` : `${(m.avgLatencyMs / 1000).toFixed(1)}s`;
+  return (
+    <div className="ai__edge" title="Claro Decisions — every input is gated by the local embedding prior before the 3B model wakes">
+      <span className="ai__edge-cell">
+        <Icon name="shield" size={11} /> <b>{pct}%</b> on-device
+      </span>
+      <span className="ai__edge-cell">
+        {m.onDevice}/{m.total} decisions skipped 3B
+      </span>
+      <span className="ai__edge-cell">
+        <Icon name="history" size={11} /> avg {latency}
+      </span>
+      {m.last && (
+        <span className="ai__edge-last" title={`last decision: ${m.last.task} · ${m.last.provider}`}>
+          {m.last.provider}
+        </span>
+      )}
+    </div>
   );
 };
 

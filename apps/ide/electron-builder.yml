@@ -14,6 +14,12 @@ directories:
   buildResources: assets
 win:
   target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
     - target: dir
       arch:
         - x64
@@ -21,6 +27,12 @@ win:
   artifactName: "${productName}-${version}-${arch}.exe"
 nsis:
   oneClick: false
+  perMachine: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
+  shortcutName: CLARO Workbench
+  runAfterFinish: true
+  deleteAppDataOnUninstall: false
+portable:
+  artifactName: "${productName}-${version}-Portable-${arch}.exe"
