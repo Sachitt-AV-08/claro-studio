@@ -21,20 +21,15 @@ interface ElectronIpc {
   invoke(channel: string, ...args: unknown[]): Promise<unknown>;
 }
 
-declare global {
-  interface Window {
-    electronAPI?: { ipcRenderer: ElectronIpc };
-  }
-}
-
 function getIpc(): ElectronIpc {
-  if (!window.electronAPI?.ipcRenderer) {
+  const win = window as Window & { electronAPI?: { ipcRenderer?: ElectronIpc } };
+  if (!win.electronAPI?.ipcRenderer) {
     throw new Error(
       "Bhasm client must be used in an Electron renderer process. " +
       "Ensure preload.ts exposes electronAPI.ipcRenderer.",
     );
   }
-  return window.electronAPI.ipcRenderer;
+  return win.electronAPI.ipcRenderer;
 }
 
 /** Typed Bhasm client for the renderer process. */

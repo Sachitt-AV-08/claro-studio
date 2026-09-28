@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import type { ModelProvider, ModelStatus, Completion } from "@project/contracts";
 import {
   createOllamaDecisionLayer,
@@ -17,7 +17,7 @@ function mockProvider(op: (call: number) => unknown | Promise<unknown>): ModelPr
     async isInstalled() {
       return true;
     },
-    async complete(_s: string, user: string): Promise<Completion> {
+    async complete(_s: string, _u: string): Promise<Completion> {
       calls++;
       return { text: JSON.stringify(await op(calls)), latencyMs: 5, model: "mock" };
     },

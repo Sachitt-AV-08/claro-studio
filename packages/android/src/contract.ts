@@ -1,4 +1,4 @@
-import type { Project, DslNode, PropValue } from "@project/contracts";
+import type { PropValue } from "@project/contracts";
 
 /**
  * Claro DslProject -> Android (Jetpack Compose) mapping table.

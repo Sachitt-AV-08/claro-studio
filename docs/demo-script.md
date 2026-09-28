@@ -74,6 +74,58 @@ That means:
 
 ---
 
+## Deck slide map — `docs/CLARO-team-training.pptx` (17 slides)
+
+If judges ask for the pitch deck instead of (or after) the live tour, this maps the
+live beats to deck slides so the story is identical in either medium.
+
+| # | Slide | Live-tour beat |
+|---|-------|----------------|
+| 1 | **type it. edit it. undo it.** (aurora) | Cold open hook |
+| 2 | Trap vs answer — rich language = hard language | Why this exists |
+| 3 | What you are looking at — pipeline + real preview | Step 1 · See it |
+| 4 | Parser never cries — forgiving input, "did you mean" | Tolerance story |
+| 5 | Undo is structural — PatchOps grid | Step 3 · Step back |
+| 6 | BHASM — four intents + guardrail | Edit it (decisions) |
+| 7 | Claro Gate — embedding prior, cost gating | Edge-AI is the point |
+| 8 | How fast — ~4ms vs seconds, 12,000× | Gate numbers |
+| 9 | Private by design | Edge AI honesty |
+| 10 | Fix any screen in one ask | Live edit demo |
+| 11 | 90-sec script — see → edit (before/after) | The tour on one page |
+| 12 | If something hiccups — fallback rows | Offline plan |
+| 13 | Judge Q&A — six cards | Q&A cushion |
+| 14 | Cheat-sheet | Handout tie-in |
+| 15 | How it's built — architecture layers | Repo/architecture Q |
+| 16 | Receipts — on-device, ~100 MB, local models | "Ships small" proof |
+| 17 | Closing (aurora) | Call to action |
+
+## Expanded Q&A (deck slide 13 covers the top 6; these are the deeper answers)
+
+- **"Why not just use a hosted model?"** (slide 8/16) — privacy: source and every
+  edit stay on the laptop. Also cost: no per-token meter while iterating. The gate
+  means the 3B model answers only ~what embeddings can't, so latency stays ~ms for
+  the common case.
+- **"How is undo actually free?"** (slide 5) — every AI edit is a list of `PatchOp`s
+  (`set_property`, `set_text`, `add_element`, `remove_element`, `move_element`,
+  `set_layout`, `set_effects`, `clear_property`). Undo applies the inverse ops —
+  no fuzzy "reconstruct the file" step, no codegen drift.
+- **"What's the Gate, concretely?"** (slide 7) — an embedding prior
+  (`nomic-embed-text`) scores how much a request looks like a real edit; below the
+  `ask` threshold the answer comes from a deterministic ladder (fallback), between
+  `ask`/`act` it wakes `qwen2.5:3b`, at/above `act` it dispatches tools. Measured on
+  the demo pair: simple edits skip the model entirely.
+- **"Is the parser really never wrong?"** (slide 4) — unknown input never crashes;
+  it becomes a diagnostic with a JSONPatch-style suggestion ("did you mean X?").
+  Known limits today: component instances emit an `unknown-type` warning when invoked
+  without a definition file in scope, and a bodiless `divider`/`spacer` absorbs the
+  next keyword as its name.
+- **"Could this become a real product?"** (slide 15) — the three layers (DSL +
+  PatchOps engine, offline AI with decisions + review, IDE with reversible loop) map
+  to a standard architecture; Android/Kotlin and single-file HTML export already
+  ship, so "writes UI for you" extends beyond the preview pane.
+
+---
+
 ## Offline / fallback plan
 
 | Failure | Fallback |

@@ -4,7 +4,6 @@ import {
   TEXT_CONTENT,
   COLUMN_LAYOUTS,
   ROW_LAYOUTS,
-  BOX_LAYOUTS,
   colorLiteral,
   numOf,
   enumOf,

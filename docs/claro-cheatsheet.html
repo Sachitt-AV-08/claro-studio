@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Claro in 60 seconds</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  @page { size: 8.27in 11.69in; margin: 0; }
+  body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    width: 8.27in; min-height: 11.69in; margin: 0 auto; padding: 0.18in;
+    color: #12121a; background: #fff; line-height: 1.22;
+  }
+  .pane { border: 1px solid #dce0ea; border-radius: 12px; padding: 8px 13px; margin-bottom: 7px; background: #fbfbfe; }
+  h1 { font-size: 15.5pt; color: #0d0d12; margin-bottom: 3px; }
+  h2 { font-size: 10.5pt; color: #1f5fb8; margin: 0 0 3px 0; display: flex; align-items: center; gap: 6px; }
+  h2 .no { color: #fff; background: #2a7ade; border-radius: 5px; width: 14px; height: 14px; font-size: 7.5pt; display: inline-flex; align-items: center; justify-content: center; }
+  blockquote { font-size: 8pt; font-style: italic; color: #444; border-left: 3px solid #2a7ade; padding-left: 8px; margin-bottom: 5px; }
+  code { background: #eef2f8; border-radius: 4px; padding: 0 3px; font-family: "Cascadia Mono", Consolas, monospace; font-size: 7.8pt; }
+  pre { background: #0d0d12; color: #e6edf5; border-radius: 8px; padding: 5px 8px; font-family: "Cascadia Mono", Consolas, monospace; font-size: 7.8pt; line-height: 1.32; margin-bottom: 4px; white-space: pre; }
+  pre code { background: none; color: inherit; }
+  p, li { font-size: 8.7pt; }
+  ul { list-style: none; padding-left: 0; }
+  li { margin-bottom: 2px; position: relative; padding-left: 14px; }
+  li::before { content: "✓"; position: absolute; left: 0; color: #2ea043; font-size: 8pt; }
+  table { width: 100%; border-collapse: collapse; margin: 3px 0 4px; font-size: 8pt; }
+  th { background: #eef2f8; text-align: left; padding: 2px 6px; font-size: 8pt; }
+  td { padding: 2px 6px; border-bottom: 1px solid #e3e7f0; font-family: "Cascadia Mono", Consolas, monospace; font-size: 7.5pt; }
+  .foot { font-size: 7pt; color: #666; margin-top: 4px; text-align: center; }
+</style>
+</head>
+<body>
+<h1>Claro in 60 seconds — one-page cheat-sheet</h1>
+
+<blockquote>Print this. Hand it to a judge. Then watch them type a screen in Claro.</blockquote>
+<blockquote>The parser is **forgiving**: case-insensitive, `a/an/the` and `and/then` are</blockquote>
+<blockquote>ignored, single quotes work, semicolons optional. Unknown input never errors —</blockquote>
+<blockquote>it turns into a "did you mean" diagnostic.</blockquote>
+
+<h2>🔤 Step 1 — write a page</h2>
+
+<pre>page Home {                    // one page per file (.cl)
+    section hero {
+        heading "Any screen you can imagine"
+        button "Try Claro" { variant: primary }
+    }
+}</pre>
+
+<p>That's it. Type it on the left → it renders live on the right. No build step.</p>
+
+<h2>🧱 Step 2 — the 21 elements</h2>
+
+<p><code>page</code> <code>section</code> <code>container</code> · three layout families (below) ·</p>
+<p><code>heading</code> <code>text</code> <code>button</code> <code>badge</code> <code>card</code> <code>navbar</code> <code>input</code> <code>textarea</code> <code>form</code></p>
+<p><code>modal</code> <code>image</code> <code>spacer</code> <code>divider</code></p>
+
+<p><strong>Layouts</strong> (change with one word): <code>stack</code> (vertical) · <code>row</code> (horizontal) ·</p>
+<p><code>grid</code> (columns <code>[1fr 2fr 1fr]</code>) · <code>overlay</code> (absolutely positioned)</p>
+
+<p><strong>Synonyms you can also use:</strong> <code>column</code>=stack · <code>flex</code>=row · <code>line</code>/<code>para</code>=text ·</p>
+<p><code>separator</code>=divider</p>
+
+<h2>🎨 Step 3 — style with props</h2>
+
+<table><thead><tr><th>Prop</th><th>Example values</th></tr></thead><tbody>
+<tr><td>size / gap / padding / margin</td><td>`24` `48px` `1.5em` `50%`</td></tr>
+<tr><td>color / background</td><td>`#87c1ff` `rgb(135, 193, 255)` `red`</td></tr>
+<tr><td>align / justify</td><td>`start` `center` `end` `stretch` · `between` `around`</td></tr>
+<tr><td>weight</td><td>`regular` `medium` `semibold` `bold`</td></tr>
+<tr><td>width / height / radius</td><td>`360` `50%` `16`</td></tr>
+<tr><td>border / shadow / opacity</td><td>`1 solid #333` · `0 8 24 rgba(0,0,0,.4)` · `0.8`</td></tr>
+<tr><td>effect</td><td>`aurora` `particles` `glow` `noise`</td></tr>
+<tr><td>animation</td><td>`fade-in` `float` `pulse` `rise`</td></tr>
+</tbody></table>
+
+<h2>🔄 Step 4 — reuse & rebuild</h2>
+
+<p><strong>Reuse:</strong> <code>component Hero(title: string, cta: string) { heading @title button @cta }</code>,</p>
+<p>then <code>Hero "Hi" "Go"</code> anywhere. <strong>Edit:</strong> click any element → change props in the</p>
+<p>inspector → it writes back to source. <strong>Comment as idea:</strong> <code># make the hero pop</code></p>
+<p>double-click → BHASM executes it as a suggestion.</p>
+
+<h2>✨ Why this is special</h2>
+
+<li>Source ⇄ preview round-trip <strong>deterministically</strong> — no codegen mismatches.</li>
+<li>Every AI edit is a <strong>PatchOp</strong> (<code>set_property</code>, <code>set_text</code>, <code>add_element</code>,</li>
+<p>  <code>remove_element</code>, <code>move_element</code>, <code>set_layout</code>, <code>set_effects</code>, <code>clear_property</code>)</p>
+<p>  → <strong>undo/redo is free</strong>.</p>
+<li>Everything runs <strong>on-device</strong> (Ollama <code>qwen2.5:3b</code>) — no cloud, no telemetry.</li>
+<li>A local <strong>Claro Gate</strong> decides which edits even need the model; easy ones are</li>
+<p>  answered by embeddings (~ms), so the 3B model sleeps most of the time.</p>
+
+<p>---</p>
+
+<p>*Full reference & terms: <code>docs/claro-terms.md</code> · language schema: <code>contracts/src/dsl-schema.ts</code>*</p>
+<p class="foot">CLARO Workbench — local-first AI-native UI-language IDE · Hack the Horizon 3.0</p>
+</body>
+</html>
