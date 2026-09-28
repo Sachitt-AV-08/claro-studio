@@ -22,6 +22,8 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
     "graphAssist": true,
     "decision": {
       "model": "qwen2.5:3b",
+      "embedModel": "nomic-embed-text",
+      "gateMargin": 0.05,
       "act": 0.9,
       "ask": 0.6,
     },

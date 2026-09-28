@@ -21,6 +21,9 @@ import { KotlinPreview } from "./preview/KotlinPreview";
 import { PythonConsole } from "./preview/PythonConsole";
 import { useMcpStore } from "./graph/mcpStore";
 import { discoverGraphJson, loadBhasmGraphSettings, type BhasmGraphSettings } from "./graph/graphSettings";
+import { JudgingTour } from "./tour/JudgingTour";
+import { DEMO_SOURCE, DEMO_EDIT_PROMPT } from "./tour/demoScreen";
+import { useMetricsStore } from "./bhasm/metricsStore";
 
 // Use the bundled Monaco instance (vite-plugin-monaco-editor) instead of the
 // CDN-loaded one that @monaco-editor/react pulls in by default. Without this,
@@ -353,6 +356,39 @@ export const App: React.FC = () => {
     return () => window.removeEventListener("claro:view", onView);
   }, []);
 
+  // Judging Tour actions (dispatched by the tour overlay / palette).
+  useEffect(() => {
+    const onTour = (e: Event) => {
+      const { action } = (e as CustomEvent).detail as { action?: string };
+      if (!action || action === "open") return;
+      if (action === "load-demo") {
+        setActiveView("explorer");
+        setShowExplorer(true);
+        setShowPreview(true);
+        setActiveDoc(null);
+        setTab("cl");
+        setTimeout(() => {
+          useClaroStore.getState().setSource(DEMO_SOURCE);
+          useMetricsStore.getState().reset();
+        }, 40);
+      } else if (action === "edit-demo") {
+        setShowExplorer(true);
+        setShowPreview(true);
+        setShowAi(true);
+        setTimeout(() => {
+          window.dispatchEvent(
+            new CustomEvent("claro:bhasm-prompt", { detail: { idea: DEMO_EDIT_PROMPT, mode: "code" } }),
+          );
+        }, 120);
+      } else if (action === "step-back") {
+        useClaroStore.getState().undo();
+        setActiveView("stitch");
+      }
+    };
+    window.addEventListener("claro:tour", onTour);
+    return () => window.removeEventListener("claro:tour", onTour);
+  }, []);
+
   // Global command palette shortcuts: Ctrl+Shift+P / F1 / Ctrl+K
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -651,6 +687,22 @@ export const App: React.FC = () => {
             void startSidecar();
           }
         },
+      },
+      {
+        id: "tour.open",
+        label: "Start Judging Tour (Ctrl+Shift+J)",
+        group: "tour",
+        icon: "rocket" as IconName,
+        run: () => {
+          window.dispatchEvent(new CustomEvent("claro:tour", { detail: { action: "open" } }));
+        },
+      },
+      {
+        id: "tour.load",
+        label: "Load the demo product screen",
+        group: "tour",
+        icon: "rocket" as IconName,
+        run: () => window.dispatchEvent(new CustomEvent("claro:tour", { detail: { action: "load-demo" } })),
       },
       {
         id: "graph.chat",
@@ -1153,6 +1205,9 @@ export const App: React.FC = () => {
 
       {/* Command Palette */}
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} makeCommands={() => paletteCommands} />
+
+      {/* Judging Tour — 3-step guided demo overlay (Ctrl+Shift+J) */}
+      <JudgingTour />
 
       {/* Status Bar */}
       <footer className="statusbar">

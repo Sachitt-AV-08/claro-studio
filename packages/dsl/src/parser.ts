@@ -438,7 +438,7 @@ export class Parser {
 
   private consumeColorFunction(p: TokIter, fn: string): string {
     let s = fn + "(";
-    let depth = 1;
+    let depth = 0;
     while (peek(p).type !== "eof") {
       const tk = next(p);
       if (tk.type === "lparen") depth++;

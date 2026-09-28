@@ -1178,6 +1178,141 @@ body {
   border-color: var(--color-accent);
 }
 
+/* ---------- Judging Tour ---------- */
+
+.tour__launch {
+  position: fixed;
+  right: var(--space-10);
+  bottom: calc(var(--status-bar-height) + var(--space-6));
+  z-index: var(--z-dropdown);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-6);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-full);
+  background: var(--color-accent-soft);
+  color: var(--color-fg-base);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  transition: background var(--transition-normal);
+}
+.tour__launch:hover {
+  background: var(--color-accent-muted);
+}
+
+.tour {
+  position: fixed;
+  top: calc(var(--titlebar-height) + var(--tab-bar-height) + var(--space-6));
+  right: var(--space-8);
+  z-index: var(--z-modal);
+  width: 340px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  color: var(--color-fg-base);
+  overflow: hidden;
+}
+
+.tour__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-6) var(--space-8);
+  border-bottom: 1px solid var(--color-border);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-lg);
+  background: var(--color-accent-soft);
+}
+.tour__head span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--color-accent);
+}
+.tour__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-fg-muted);
+  cursor: pointer;
+}
+.tour__close:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-fg-base);
+}
+
+.tour__steps {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-4);
+  gap: var(--space-3);
+}
+
+.tour__step {
+  display: flex;
+  gap: var(--space-6);
+  align-items: flex-start;
+  padding: var(--space-6);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-base);
+  color: var(--color-fg-base);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--transition-normal), background var(--transition-normal);
+}
+.tour__step:hover {
+  border-color: var(--color-accent);
+  background: var(--color-bg-hover);
+}
+
+.tour__step-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-md);
+  background: var(--color-accent-muted);
+  color: var(--color-accent);
+}
+
+.tour__step-copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.tour__step-copy b {
+  font-size: var(--font-size-sm);
+  color: var(--color-fg-strong);
+}
+.tour__step-copy small {
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-normal);
+  color: var(--color-fg-muted);
+}
+.tour__step-copy em {
+  font-style: normal;
+  font-size: var(--font-size-xs);
+  color: var(--color-accent);
+}
+
+.tour__foot {
+  padding: var(--space-4) var(--space-8);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--font-size-xs);
+  color: var(--color-fg-muted);
+}
+
 .ai__edge {
   display: flex;
   align-items: center;
@@ -1211,6 +1346,33 @@ body {
   color: var(--color-accent);
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+.ai__edge-epoch {
+  padding: 1px var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-active);
+  color: var(--color-fg-muted);
+  white-space: nowrap;
+}
+
+.ai__edge-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 1px var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-fg-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ai__edge-reset:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
 }
 
 .ai__graph-dot {

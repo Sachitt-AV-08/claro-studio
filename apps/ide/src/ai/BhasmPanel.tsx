@@ -106,12 +106,18 @@ export const BhasmPanel: React.FC<PanelProps> = ({ onToggle, height }) => {
   }, []);
 
   // Consume a "#" idea seed from the editor (double-click) → BHASM classifies
-  // the intent (Claro Decisions) and prefills the best mode.
+  // the intent (Claro Decisions) and prefills the best mode. An explicit
+  // `mode` in the detail wins (used by the Judging Tour's pre-filled edit).
   useEffect(() => {
     const onSeed = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { idea: string };
+      const detail = (e as CustomEvent).detail as { idea: string; mode?: BhasmMode };
       if (!detail?.idea) return;
       void (async () => {
+        if (detail.mode === "code") {
+          setMode("code");
+          setInput(detail.idea);
+          return;
+        }
         const { mode: seedMode } = await classifySeed(detail.idea);
         setMode(seedMode);
         setInput(`Explain and improve: ${detail.idea}`);
@@ -446,6 +452,7 @@ export const BhasmPanel: React.FC<PanelProps> = ({ onToggle, height }) => {
 /** Live Edge-AI strip: how many decisions never woke the 3B model. */
 const EdgeAIMetrics: React.FC = () => {
   const m = edgeMetrics();
+  const epoch = useMetricsStore((s) => s.epoch);
   if (m.total === 0) return null;
   const pct = Math.round(m.skippedRate * 100);
   const latency = m.avgLatencyMs < 100 ? `${Math.round(m.avgLatencyMs)}ms` : `${(m.avgLatencyMs / 1000).toFixed(1)}s`;
@@ -465,6 +472,16 @@ const EdgeAIMetrics: React.FC = () => {
           {m.last.provider}
         </span>
       )}
+      <span className="ai__edge-epoch" title={`metrics epoch — reset for a fresh run-through`}>
+        epoch {epoch}
+      </span>
+      <button
+        className="ai__edge-reset"
+        onClick={() => useMetricsStore.getState().reset()}
+        title="Reset Edge-AI metrics (start a fresh epoch for the demo)"
+      >
+        <Icon name="sync" size={10} /> reset
+      </button>
     </div>
   );
 };

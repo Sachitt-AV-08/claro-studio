@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import type { ModelProvider, ModelStatus, Completion, PatchOp } from "@project/contracts";
+import { setEmbedTransport } from "@project/ai";
 import {
   heuristicHint,
   routeTool,
@@ -10,6 +11,8 @@ import {
   shouldPropose,
   setDecisionProviderFactory,
   resetLayerCache,
+  resetEmbedderCache,
+  resetGateCache,
 } from "./decisions";
 import { useDecisionStore } from "./decisionStore";
 import type { BhasmGraphSettings } from "../graph/graphSettings";
@@ -38,6 +41,26 @@ const cfg: BhasmGraphSettings = {
   graphAssist: false,
   decision: { model: "qwen2.5:3b", act: 0.9, ask: 0.6 },
 };
+
+/**
+ * Deterministic embed transport: NO embedding model installed and /api/embed
+ * unavailable. This keeps the Claro Gate + embed prior in their fast-fallback
+ * path exactly as on a clean box (the decision paths under test are the pure
+ * heuristic + mocked LLM layer paths), without ever touching live Ollama.
+ */
+const mockEmbedTransport = (path: string, _init: { method: string; body?: string }) => {
+  if (path.startsWith("/api/tags")) {
+    return Promise.resolve({ ok: true, status: 200, text: JSON.stringify({ models: [] }) });
+  }
+  return Promise.resolve({ ok: false, status: 404, text: "embedding unavailable" });
+};
+
+beforeEach(() => setEmbedTransport(mockEmbedTransport));
+afterEach(() => {
+  setEmbedTransport(undefined);
+  resetEmbedderCache();
+  resetGateCache();
+});
 
 describe("heuristicHint", () => {
   it("sniffs review", () => {

@@ -39,6 +39,7 @@ export interface MetricAggregate {
 
 interface MetricsState {
   id: number;
+  epoch: number;
   samples: DecisionMetric[];
   record: (s: Omit<DecisionMetric, "id" | "ts">) => void;
   reset: () => void;
@@ -55,6 +56,7 @@ function p50(latencies: number[]): number {
 
 export const useMetricsStore = create<MetricsState>((set, get) => ({
   id: 0,
+  epoch: 1,
   samples: [],
   record(s) {
     const id = get().id + 1;
@@ -63,7 +65,7 @@ export const useMetricsStore = create<MetricsState>((set, get) => ({
     set({ id, samples });
   },
   reset() {
-    set({ id: 0, samples: [] });
+    set({ id: 0, samples: [], epoch: get().epoch + 1 });
   },
 }));
 

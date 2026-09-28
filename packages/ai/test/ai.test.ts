@@ -126,7 +126,7 @@ describe("health", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.models.length).toBeGreaterThan(0);
-      expect(result.models[0].name).toContain("qwen2.5");
+      expect(result.models.some((m) => m.name.includes("qwen2.5"))).toBe(true);
     }
   });
 });
